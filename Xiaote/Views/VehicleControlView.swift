@@ -209,18 +209,7 @@ struct VehicleControlView: View {
                                 .fill(connected ? Color.green : AppTheme.muted)
                                 .frame(width: 7, height: 7)
                             Text(vehicle.phase.title).font(.subheadline.weight(.semibold))
-                            if connected {
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(passiveKeyStatusColor)
-                                        .frame(width: 6, height: 6)
-                                    Text(passiveKeyCompactStatus)
-                                }
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(AppTheme.muted)
-                                .padding(.leading, 2)
-                                .accessibilityElement(children: .combine)
-                            }
+
                         }
                         Text(statusSummary).font(.caption).foregroundStyle(AppTheme.muted)
                     }
@@ -234,6 +223,7 @@ struct VehicleControlView: View {
             }
             .buttonStyle(UtilityPressStyle())
             .accessibilityHint("查看车辆详情")
+            VehicleConnectionSummary { showingTeslaAccount = true }
             Divider().overlay(AppTheme.hairline)
             HStack(spacing: 20) {
                 if let battery = vehicle.batteryLevel {
@@ -287,8 +277,9 @@ struct VehicleControlView: View {
     }
 
     private var compactLockButton: some View {
-        let action: VehicleController.VehicleAction = vehicle.isLocked == true ? .unlock : .lock
-        let label = vehicle.isLocked == true ? "解锁车辆" : "锁定车辆"
+        let lockIsFresh = VehicleDataAge.isFresh(vehicle.stateFreshness.dates[.lock])
+        let action: VehicleController.VehicleAction = lockIsFresh && vehicle.isLocked == true ? .unlock : .lock
+        let label = action == .unlock ? "解锁车辆" : "锁定车辆"
         return Button {
             if action == .unlock { submit(.unlock) { await secureUnlock() } }
             else { submit(.lock) { await vehicle.lock() } }
@@ -301,7 +292,7 @@ struct VehicleControlView: View {
                         .font(.system(size: 15, weight: .semibold))
                 }
             }
-            .frame(width: 40, height: 40)
+            .frame(width: 44, height: 44)
             .foregroundStyle(.black)
             .background(.white, in: Circle())
         }
@@ -529,7 +520,8 @@ struct VehicleControlView: View {
 
     private var statusSummary: String {
         guard connected else { return "轻点重新连接" }
-        let lock = vehicle.isLocked.map { $0 ? "已上锁" : "已解锁" } ?? "锁车状态读取中"
+        let fresh = VehicleDataAge.isFresh(vehicle.stateFreshness.dates[.lock])
+        let lock = fresh ? (vehicle.isLocked.map { $0 ? "已上锁" : "已解锁" } ?? "锁车状态读取中") : "门锁状态待刷新"
         let odometer = vehicle.odometerKilometers.map {
             "累计 \($0.formatted(.number.precision(.fractionLength(0)))) km"
         } ?? "里程等待同步"

@@ -167,6 +167,9 @@ final class VehicleController {
     var isCabinOverheatProtectionOn = false
     var commandHistory: [CommandRecord] = []
     var automationScenes: [AutomationScene] = []
+    var sceneExecution: SceneExecution?
+    var lastCommandFailure: String?
+    var isSceneRunning: Bool { activeSceneID != nil }
     var alertPreferences: VehicleAlertPreferences
     var vehicleSchedules: [VehicleSchedule] = []
     var nearbyChargingSites: [ChargingSite] = []
@@ -379,36 +382,71 @@ final class VehicleController {
 
     func runScene(_ scene: AutomationScene) async {
         guard activeSceneID == nil, executingAction == nil, phase == .connected else {
-            presentNonfatalError("请等待当前操作完成后再执行场景。")
+            presentNonfatalError("请先连接车辆，并等待当前操作完成。")
             return
         }
         let batchID = UUID()
         let generation = commandAdmission.generation
         activeSceneID = batchID
         sceneFailed = false
+        sceneExecution = SceneExecution(id: batchID, sceneID: scene.id, name: scene.name,
+                                        vehicleID: vehicleID, titles: scene.actions.map(\.title))
         defer {
-            if activeSceneID == batchID { activeSceneID = nil; authorizedSceneID = nil }
+            if activeSceneID == batchID {
+                activeSceneID = nil; authorizedSceneID = nil
+                if sceneExecution?.isRunning == true { sceneExecution?.finish(reason: "场景已中止") }
+            }
         }
         let containsSensitive = scene.actions.contains(.unlock)
         if faceIDProtection == .all || (faceIDProtection == .sensitive && containsSensitive) {
-            guard await authenticateVehicleControl(reason: "确认执行场景“\(scene.name)”") else { return }
+            guard await authenticateVehicleControl(reason: "确认执行场景“\(scene.name)”") else {
+                if sceneExecution?.id == batchID { sceneExecution?.finish(reason: "身份验证未完成，场景未执行") }
+                return
+            }
         }
         guard generation == commandAdmission.generation, activeSceneID == batchID, !Task.isCancelled else { return }
         authorizedSceneID = batchID
         await SceneCommandContext.$batchID.withValue(batchID) {
-            for action in scene.actions {
+            for (index, action) in scene.actions.enumerated() {
                 guard !sceneFailed, !Task.isCancelled, generation == commandAdmission.generation,
                       activeSceneID == batchID, phase == .connected else { break }
+                sceneExecution?.update(index, status: .running)
+                let started = Date()
+                let accepted: Bool
                 switch action {
-                case .unlock: await unlock()
-                case .lock: await lock()
-                case .climate: if !isClimateOn { await toggleClimate() }
-                case .defrost: if !isDefrostOn { await toggleDefrost() }
-                case .sentry:
-                    if isSentryAvailable && !isSentryOn { await toggleSentryMode() }
+                case .unlock: accepted = await unlock()
+                case .lock: accepted = await lock()
+                case .climate: accepted = await setClimateEnabled(true)
+                case .defrost: accepted = await setDefrostEnabled(true)
+                case .sentry: accepted = await setSentryEnabled(true)
                 }
+                guard generation == commandAdmission.generation, sceneExecution?.id == batchID else { return }
+                guard accepted else {
+                    sceneExecution?.update(index, status: .failed(lastCommandFailure ?? "操作未完成"))
+                    sceneExecution?.finish(reason: "场景已停止，后续操作未执行")
+                    return
+                }
+                let confirmed = isSceneActionConfirmed(action, since: started)
+                sceneExecution?.update(index, status: confirmed ? .confirmed : .sent)
             }
+            guard sceneExecution?.id == batchID, generation == commandAdmission.generation else { return }
+            sceneExecution?.finish(reason: Task.isCancelled || sceneFailed ? "场景已中止" : nil)
         }
+    }
+
+    private func isSceneActionConfirmed(_ action: SceneAction, since date: Date) -> Bool {
+        switch action {
+        case .lock: return hasRead(.lock, since: date) && isLocked == true
+        case .unlock: return hasRead(.lock, since: date) && isLocked == false
+        case .climate: return hasRead(.climateEnabled, since: date) && isClimateOn
+        case .defrost: return hasRead(.defrost, since: date) && isDefrostOn
+        case .sentry: return hasRead(.sentry, since: date) && isSentryOn
+        }
+    }
+
+    private func hasRead(_ category: VehicleStateFreshness.Category, since date: Date) -> Bool {
+        guard let updated = stateFreshness.dates[category] else { return false }
+        return updated >= date
     }
 
     func refreshSchedules() async {
@@ -760,23 +798,29 @@ final class VehicleController {
         }
     }
 
-    func lock() async {
+    @discardableResult
+    func lock() async -> Bool {
         if await execute(.lock, name: "上锁", operation: { try await self.perform(modern: { try await $0.lock() }, legacy: { try await $0.rke(1) }) }) {
             await confirmLockState()
+            return true
         }
+        return false
     }
-    func unlock() async {
+    @discardableResult
+    func unlock() async -> Bool {
         if await execute(.unlock, name: "解锁", operation: { try await self.perform(modern: { try await $0.unlock() }, legacy: { try await $0.rke(0) }) }) {
             await confirmLockState()
+            return true
         }
+        return false
     }
 
     private func confirmLockState() async {
         let generation = commandAdmission.generation
-        let previous = stateFreshness.dates[.basic]
+        let previous = stateFreshness.dates[.lock]
         await refreshBasicVehicleState()
         guard generation == commandAdmission.generation else { return }
-        if previous == stateFreshness.dates[.basic] {
+        if previous == stateFreshness.dates[.lock] {
             stateRefreshMessage = "指令已发送，车辆状态尚未确认"
         }
     }
@@ -806,8 +850,10 @@ final class VehicleController {
             await refreshBasicVehicleState()
         }
     }
-    func flashLights() async { await execute(.flash, name: "闪灯") { try await self.performInfotainment { try await $0.flashLights() } } }
-    func honk() async { await execute(.horn, name: "鸣笛") { try await self.performInfotainment { try await $0.honkHorn() } } }
+    @discardableResult
+    func flashLights() async -> Bool { await execute(.flash, name: "闪灯") { try await self.performInfotainment { try await $0.flashLights() } } }
+    @discardableResult
+    func honk() async -> Bool { await execute(.horn, name: "鸣笛") { try await self.performInfotainment { try await $0.honkHorn() } } }
     func authorizeDrive() async {
         await execute(.drive, name: "启动车辆") {
             try await self.performModern { vehicle in
@@ -869,14 +915,16 @@ final class VehicleController {
         }
     }
 
-    func toggleClimate() async {
-        let turningOn = !isClimateOn
-        if await execute(.climate, name: turningOn ? "打开空调" : "关闭空调", operation: {
-            try await self.performInfotainment { try await $0.setClimateAuto(enabled: turningOn) }
-        }) {
-            isClimateOn = turningOn
-            await refreshClimateState(after: .milliseconds(500))
-        }
+    @discardableResult
+    func toggleClimate() async -> Bool { await setClimateEnabled(!isClimateOn) }
+
+    @discardableResult
+    func setClimateEnabled(_ enabled: Bool) async -> Bool {
+        guard await execute(.climate, name: enabled ? "打开空调" : "关闭空调", operation: {
+            try await self.performInfotainment { try await $0.setClimateAuto(enabled: enabled) }
+        }) else { return false }
+        await refreshClimateState(after: .milliseconds(500))
+        return true
     }
 
     func setCabinTemperature(_ celsius: Double) async {
@@ -889,14 +937,15 @@ final class VehicleController {
         }
     }
 
-    func toggleDefrost() async {
-        let enabled = !isDefrostOn
-        if await execute(.defrost, name: enabled ? "开启最大除霜" : "关闭最大除霜", operation: {
+    func toggleDefrost() async { _ = await setDefrostEnabled(!isDefrostOn) }
+
+    @discardableResult
+    func setDefrostEnabled(_ enabled: Bool) async -> Bool {
+        guard await execute(.defrost, name: enabled ? "开启最大除霜" : "关闭最大除霜", operation: {
             try await self.performInfotainment { try await $0.setPreconditioningMax(enabled: enabled) }
-        }) {
-            isDefrostOn = enabled
-            await refreshClimateState()
-        }
+        }) else { return false }
+        await refreshClimateState()
+        return true
     }
 
     func toggleSteeringWheelHeater() async {
@@ -944,18 +993,19 @@ final class VehicleController {
         }
     }
 
-    func toggleSentryMode() async {
+    func toggleSentryMode() async { _ = await setSentryEnabled(!isSentryOn) }
+
+    @discardableResult
+    func setSentryEnabled(_ enabled: Bool) async -> Bool {
         guard isSentryAvailable else {
-            presentError("当前车辆没有提供哨兵模式能力。")
-            return
+            presentNonfatalError("当前车辆没有提供哨兵模式能力。")
+            return false
         }
-        let enabled = !isSentryOn
-        if await execute(.sentry, name: enabled ? "开启哨兵模式" : "关闭哨兵模式", operation: {
+        guard await execute(.sentry, name: enabled ? "开启哨兵模式" : "关闭哨兵模式", operation: {
             try await self.performInfotainment { try await $0.setSentryMode(enabled: enabled) }
-        }) {
-            isSentryOn = enabled
-            await refreshClosuresState()
-        }
+        }) else { return false }
+        await refreshClosuresState()
+        return true
     }
 
     func toggleWindows() async {
@@ -1030,7 +1080,7 @@ final class VehicleController {
             if previousDates[.basic] == stateFreshness.dates[.basic] {
                 stateRefreshMessage = "本次未读到车辆状态，显示上次数据"
             }
-            WatchBridge.shared.publish(name: displayVehicleName, battery: batteryLevel, range: estimatedRangeKilometers, locked: isLocked)
+            publishWatchState()
             return
         }
         if executingAction == nil { try? await tesla.startInfotainmentSession() }
@@ -1087,7 +1137,7 @@ final class VehicleController {
         if categories.contains(where: { previousDates[$0] == stateFreshness.dates[$0] }) {
             stateRefreshMessage = executingAction == nil ? "部分状态未更新，显示上次数据" : "已优先处理车辆操作，部分状态稍后刷新"
         }
-        WatchBridge.shared.publish(name: displayVehicleName, battery: batteryLevel, range: estimatedRangeKilometers, locked: isLocked)
+        publishWatchState()
         await VehicleAlertManager.evaluate(vehicleID: vehicleID, name: displayVehicleName, preferences: alertPreferences,
                                            battery: alertBattery, openDoors: alertDoors, openWindows: alertWindows,
                                            chargingCondition: alertCharging)
@@ -1118,15 +1168,21 @@ final class VehicleController {
             guard !isRefreshingMediaState else { return }
             isRefreshingVehicleState = true
         }
-        defer { if ownsRefreshLock { isRefreshingVehicleState = false } }
+        defer {
+            if ownsRefreshLock { isRefreshingVehicleState = false }
+            if generation == commandAdmission.generation { publishWatchState() }
+        }
         if let tesla, let status = try? await tesla.vehicleStatus() {
             guard generation == commandAdmission.generation, !Task.isCancelled else { return }
             stateFreshness.record(.basic)
             applyRearTrunkState(status.closureStatuses.rearTrunk)
             if let value = Self.isOpen(status.closureStatuses.frontTrunk) { isFrunkOpen = value }
             if let value = Self.isOpen(status.closureStatuses.chargePort) { isChargePortOpen = value }
-            isLocked = status.vehicleLockState == .vehiclelockstateLocked
-                || status.vehicleLockState == .vehiclelockstateInternalLocked
+            if status.vehicleLockState == .vehiclelockstateLocked || status.vehicleLockState == .vehiclelockstateInternalLocked {
+                isLocked = true; stateFreshness.record(.lock)
+            } else if status.vehicleLockState == .vehiclelockstateUnlocked {
+                isLocked = false; stateFreshness.record(.lock)
+            }
             vehicleSleepStatus = switch status.vehicleSleepStatus {
             case .vehicleSleepStatusAwake: "已唤醒"
             case .vehicleSleepStatusAsleep: "休眠"
@@ -1138,7 +1194,10 @@ final class VehicleController {
             if let rearTrunk = status.rearTrunk { applyRearTrunkState(rawValue: rearTrunk) }
             if let frontTrunk = status.frontTrunk, let value = Self.isOpen(rawValue: frontTrunk) { isFrunkOpen = value }
             if let chargePort = status.chargePort, let value = Self.isOpen(rawValue: chargePort) { isChargePortOpen = value }
-            if let lockState = status.lockState { isLocked = lockState == 1 || lockState == 2 }
+            if let lockState = status.lockState, lockState <= 2 {
+                isLocked = lockState == 1 || lockState == 2
+                stateFreshness.record(.lock)
+            }
             if let sleepState = status.sleepState {
                 vehicleSleepStatus = sleepState == 1 ? "已唤醒" : (sleepState == 2 ? "休眠" : "状态未知")
             }
@@ -1231,8 +1290,8 @@ final class VehicleController {
 
     private func apply(_ state: CarServer_ChargeState) {
         stateFreshness.record(.charge)
-        if state.optionalBatteryLevel != nil { batteryLevel = Int(state.batteryLevel) }
-        if state.optionalBatteryRange != nil { estimatedRangeKilometers = Double(state.batteryRange) * 1.609344 }
+        if state.optionalBatteryLevel != nil { batteryLevel = Int(state.batteryLevel); stateFreshness.record(.battery) }
+        if state.optionalBatteryRange != nil { estimatedRangeKilometers = Double(state.batteryRange) * 1.609344; stateFreshness.record(.range) }
         if state.optionalChargeLimitSoc != nil { chargeLimit = Int(state.chargeLimitSoc) }
         if state.optionalChargeLimitSocMin != nil { minimumChargeLimit = Int(state.chargeLimitSocMin) }
         if state.optionalChargeLimitSocMax != nil { maximumChargeLimit = Int(state.chargeLimitSocMax) }
@@ -1289,7 +1348,7 @@ final class VehicleController {
 
     private func apply(_ state: CarServer_ClimateState) {
         stateFreshness.record(.climate)
-        if state.optionalIsClimateOn != nil { isClimateOn = state.isClimateOn }
+        if state.optionalIsClimateOn != nil { isClimateOn = state.isClimateOn; stateFreshness.record(.climateEnabled) }
         if state.optionalInsideTempCelsius != nil { cabinTemperature = Double(state.insideTempCelsius) }
         if state.optionalOutsideTempCelsius != nil { outsideTemperature = Double(state.outsideTempCelsius) }
         if state.optionalDriverTempSetting != nil { targetTemperature = Double(state.driverTempSetting) }
@@ -1300,6 +1359,7 @@ final class VehicleController {
             maximumCabinTemperature = 28
         }
         if state.hasDefrostMode {
+            stateFreshness.record(.defrost)
             isDefrostOn = switch state.defrostMode.type {
             case .max?: true
             default: false
@@ -1326,6 +1386,7 @@ final class VehicleController {
             isSentryAvailable = state.sentryModeAvailable
         }
         if state.hasSentryModeState {
+            stateFreshness.record(.sentry)
             isSentryOn = switch state.sentryModeState.type {
             case .off?, nil: false
             default: true
@@ -1358,7 +1419,7 @@ final class VehicleController {
         if state.optionalWindowOpenPassengerRear != nil { windowStates["右后窗"] = state.windowOpenPassengerRear }
         if state.optionalDoorOpenTrunkFront != nil { isFrunkOpen = state.doorOpenTrunkFront }
         if state.optionalDoorOpenTrunkRear != nil, !isTrunkMoving { isTrunkOpen = state.doorOpenTrunkRear }
-        if state.optionalLocked != nil { isLocked = state.locked }
+        if state.optionalLocked != nil { isLocked = state.locked; stateFreshness.record(.lock) }
     }
 
     private func apply(_ state: CarServer_TirePressureState) {
@@ -1460,6 +1521,7 @@ final class VehicleController {
         passiveConnection = nil
         passiveKeyOnline = false
         phase = .idle
+        publishWatchState()
     }
 
     private func restoreCommandConnection(on link: BLEConnection) async {
@@ -1653,6 +1715,7 @@ final class VehicleController {
     }
 
     func forgetVehicle() {
+        defer { publishWatchState() }
         UserDefaults.standard.removeObject(forKey: AppStorageKeys.vehicleVINPrefix + vehicleID)
         UserDefaults.standard.removeObject(forKey: AppStorageKeys.vehicleModelPrefix + vehicleID)
         UserDefaults.standard.removeObject(forKey: AppStorageKeys.customVehicleNamePrefix + vehicleID)
@@ -1685,7 +1748,59 @@ final class VehicleController {
         }
     }
 
+    func publishWatchState() {
+        guard managesPassiveKey else { return }
+        WatchBridge.shared.publish(WatchVehicleSnapshot(vehicleID: isPaired ? vehicleID : "", name: displayVehicleName,
+            battery: batteryLevel, range: estimatedRangeKilometers, locked: isLocked,
+            batteryUpdatedAt: stateFreshness.dates[.battery], rangeUpdatedAt: stateFreshness.dates[.range],
+            lockUpdatedAt: stateFreshness.dates[.lock], publishedAt: .now))
+    }
+
+    func performWatchCommand(_ request: WatchCommandRequest) async -> WatchCommandResult {
+        func result(_ status: WatchCommandResult.Status, _ message: String) -> WatchCommandResult {
+            WatchCommandResult(request: request, status: status, message: message)
+        }
+        guard request.isValid(at: .now), isPaired, request.vehicleID == vehicleID else {
+            return result(.failed, "车辆已切换或请求已过期，请刷新后重试")
+        }
+        guard phase == .connected, executingAction == nil, activeSceneID == nil else {
+            return result(.failed, "请在 iPhone 连接车辆，并等待当前操作完成")
+        }
+        if faceIDProtection == .all || (faceIDProtection == .sensitive && request.command == .unlock) {
+            return result(.failed, "此操作受 Face ID 保护，请在 iPhone 上执行。")
+        }
+        let generation = commandAdmission.generation
+        let started = Date()
+        let accepted: Bool
+        switch request.command {
+        case .lock: accepted = await lock()
+        case .unlock: accepted = await unlock()
+        case .climate: accepted = await setClimateEnabled(true)
+        case .flash: accepted = await flashLights()
+        case .horn: accepted = await honk()
+        }
+        guard generation == commandAdmission.generation, request.vehicleID == vehicleID else {
+            return result(.unconfirmed, "车辆连接已变化，执行结果尚未确认")
+        }
+        publishWatchState()
+        guard accepted else { return result(.failed, lastCommandFailure ?? "操作未完成，请在 iPhone 查看") }
+        switch request.command {
+        case .lock:
+            return hasRead(.lock, since: started) && isLocked == true
+                ? result(.succeeded, "车辆已锁定") : result(.unconfirmed, "锁车指令已发送，门锁状态尚未确认")
+        case .unlock:
+            return hasRead(.lock, since: started) && isLocked == false
+                ? result(.succeeded, "车辆已解锁") : result(.unconfirmed, "解锁指令已发送，门锁状态尚未确认")
+        case .climate:
+            return hasRead(.climateEnabled, since: started) && isClimateOn
+                ? result(.succeeded, "空调已开启") : result(.unconfirmed, "空调指令已发送，状态尚未确认")
+        case .flash: return result(.succeeded, "车辆已接受闪灯指令")
+        case .horn: return result(.succeeded, "车辆已接受鸣笛指令")
+        }
+    }
+
     private func invalidateCommands() {
+        sceneExecution?.finish(reason: "车辆连接已变化，场景已中止")
         commandAdmission.invalidate()
         executingAction = nil
         commandProgress = nil
@@ -1708,6 +1823,7 @@ final class VehicleController {
             presentNonfatalError("已有操作正在执行，请稍后再试。"); return false
         }
         let originalVehicleID = vehicleID
+        lastCommandFailure = nil
         executingAction = action
         commandProgress = "等待发送"
         var succeeded = false
@@ -1877,12 +1993,14 @@ final class VehicleController {
 
     private func presentError(_ message: String) {
         errorMessage = message
+        lastCommandFailure = message
         phase = .failed(message)
         showingError = true
     }
 
     private func presentNonfatalError(_ message: String) {
         errorMessage = message
+        lastCommandFailure = message
         showingError = true
     }
 
@@ -1931,9 +2049,11 @@ final class VehicleController {
             commandHistory = []
         }
         defaults.set(identifier, forKey: AppStorageKeys.pairedVehicleID)
+        publishWatchState()
     }
 
     private func resetTransientVehicleState() {
+        sceneExecution = nil
         mediaArtworkLookupTask?.cancel()
         lastArtworkLookupKey = nil
         isTrunkOpen = false; isTrunkMoving = false; trunkOperationStatus = nil
