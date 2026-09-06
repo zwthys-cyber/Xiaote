@@ -65,9 +65,16 @@ struct FleetHomeView: View {
                 .frame(width: 40, height: 40)
                 .background(AppTheme.raised, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
-                Text("远程连接可用").font(.headline)
-                Text("通过 Tesla Fleet API 获取车辆状态")
+                Text(account.connectionState.title).font(.headline)
+                Text(account.needsReauthentication ? "重新登录后恢复远程功能，本地钥匙仍可使用" : "通过 Tesla Fleet API 获取车辆状态")
                     .font(.caption).foregroundStyle(AppTheme.muted)
+                if account.needsReauthentication {
+                    Button("重新登录") { Task { await account.signIn() } }
+                        .disabled(account.isWorking)
+                } else if account.connectionState == .unavailable {
+                    Button("重试连接") { Task { await account.refreshAccount() } }
+                        .disabled(account.isWorking)
+                }
             }
             Spacer()
             if account.isWorking { ProgressView().controlSize(.small).tint(.white) }

@@ -243,6 +243,7 @@ struct FleetCommandResult: Decodable, Sendable {
 enum FleetAPIError: LocalizedError {
     case invalidResponse
     case server(String)
+    case http(status: Int, code: String?, message: String)
     case loginCancelled
     case missingCallbackCode
 
@@ -250,9 +251,16 @@ enum FleetAPIError: LocalizedError {
         switch self {
         case .invalidResponse: "服务器返回了无法识别的数据。"
         case .server(let message): message
+        case .http(let status, _, let message):
+            status == 401 ? "Tesla 授权已失效，请重新登录。" : message
         case .loginCancelled: "已取消登录。"
         case .missingCallbackCode: "Tesla 授权回调无效，请重新登录。"
         }
+    }
+
+    var requiresReauthentication: Bool {
+        if case .http(let status, _, _) = self { return status == 401 }
+        return false
     }
 }
 
@@ -357,7 +365,7 @@ actor FleetAPIClient {
 
     private struct EmptyResponse: Decodable {}
     private struct ErrorEnvelope: Decodable {
-        struct Detail: Decodable { let message: String }
+        struct Detail: Decodable { let code: String?; let message: String }
         let error: Detail
     }
 
@@ -380,8 +388,9 @@ actor FleetAPIClient {
         let (data, rawResponse) = try await session.data(for: request)
         guard let response = rawResponse as? HTTPURLResponse else { throw FleetAPIError.invalidResponse }
         guard (200..<300).contains(response.statusCode) else {
-            let message = (try? JSONDecoder().decode(ErrorEnvelope.self, from: data).error.message)
-            throw FleetAPIError.server(message ?? "服务器请求失败（\(response.statusCode)）。")
+            let detail = try? JSONDecoder().decode(ErrorEnvelope.self, from: data).error
+            throw FleetAPIError.http(status: response.statusCode, code: detail?.code,
+                                     message: detail?.message ?? "服务器请求失败（\(response.statusCode)）。")
         }
         if Value.self == EmptyResponse.self, data.isEmpty {
             return EmptyResponse() as! Value
