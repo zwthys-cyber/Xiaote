@@ -3,6 +3,7 @@ import Foundation
 struct VehicleStateFreshness {
     enum Category: String, CaseIterable {
         case basic, charge, climate, closures, tires, drive, software, media
+        case lock, battery, range, climateEnabled, defrost, sentry
     }
     private(set) var dates: [Category: Date] = [:]
 

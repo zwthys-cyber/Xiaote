@@ -16,7 +16,7 @@ targets:
   Xiaote:
     type: application
     platform: iOS
-    sources: [Xiaote]
+    sources: [Xiaote, Shared]
     info:
       path: Xiaote/Info.plist
       properties:
@@ -56,7 +56,7 @@ targets:
     type: application
     platform: watchOS
     deploymentTarget: "10.0"
-    sources: [XiaoteWatch]
+    sources: [XiaoteWatch, Shared]
     info:
       path: XiaoteWatch/WatchAppInfo.plist
       properties:

@@ -20,6 +20,7 @@ final class FleetAccountController: NSObject {
     private(set) var vehicles: [FleetVehicle] = []
     private(set) var isWorking = false
     var errorMessage: String?
+    private(set) var lastAccountUpdate: Date?
 
     enum ConnectionState {
         case notConnected, checking, available, unavailable, reauthorizationRequired
@@ -189,6 +190,7 @@ final class FleetAccountController: NSObject {
         vehicles = []
         isWorking = false
         connectionState = .notConnected
+        lastAccountUpdate = nil
         errorMessage = nil
         // Clear local state immediately, then attempt remote revocation.
         try? await api.logout(token: current.token)
@@ -266,6 +268,7 @@ final class FleetAccountController: NSObject {
     }
 
     private func apply(remoteVehicles: [FleetVehicle]) {
+        lastAccountUpdate = .now
         vehicles = remoteVehicles
     }
 
