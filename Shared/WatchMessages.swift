@@ -97,6 +97,10 @@ struct WatchCommandTracking: Codable {
         result = incoming
     }
 
+    mutating func selectVehicle(_ vehicleID: String) {
+        if let request, request.vehicleID != vehicleID { self = WatchCommandTracking() }
+    }
+
     mutating func markUnconfirmed() {
         guard isPending, let request else { return }
         result = WatchCommandResult(request: request, status: .unconfirmed,

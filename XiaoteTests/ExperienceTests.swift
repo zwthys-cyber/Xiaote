@@ -46,6 +46,20 @@ final class ExperienceTests: XCTestCase {
         XCTAssertFalse(tracking.isPending)
     }
 
+    func testRestoredWatchRequestCannotAppearUnderAnotherVehicle() throws {
+        var tracking = WatchCommandTracking()
+        let previous = request()
+        tracking.begin(previous)
+        let encoded = try JSONEncoder().encode(tracking)
+        var restored = try JSONDecoder().decode(WatchCommandTracking.self, from: encoded)
+        restored.markUnconfirmed()
+        restored.selectVehicle("vehicle-b")
+        restored.receive(WatchCommandResult(request: previous, status: .succeeded, message: "Old car locked"))
+        XCTAssertNil(restored.request)
+        XCTAssertNil(restored.result)
+        XCTAssertFalse(restored.isPending)
+    }
+
     func testTimeoutCanRecoverButCannotReplaceNewerCommand() {
         let first = request()
         var tracking = WatchCommandTracking()
