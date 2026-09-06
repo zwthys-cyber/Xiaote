@@ -176,7 +176,16 @@ final class VehicleController {
     var scheduleLocationName: String?
     private var scheduleLatitude: Float?
     private var scheduleLongitude: Float?
-    var lastStateUpdate: Date?
+    var stateFreshness = VehicleStateFreshness()
+    var stateRefreshMessage: String?
+    var commandProgress: String?
+    var lastStateUpdate: Date? {
+        stateFreshness.updatedAt(requiring: currentVIN == nil ? [.basic] : [.basic, .charge, .climate, .closures])
+    }
+    private var commandAdmission = CommandAdmission()
+    private var activeSceneID: UUID?
+    private var sceneFailed = false
+
     private var mediaArtworkLookupTask: Task<Void, Never>?
     private var trunkStateRefreshTask: Task<Void, Never>?
     private var lastArtworkLookupKey: String?
@@ -190,7 +199,7 @@ final class VehicleController {
     private var sessionNeedsForegroundValidation = false
     private var appIsBackgrounded = false
     private var commandConnectionPausedForBackground = false
-    private var authorizedCommandBatchActive = false
+    private var authorizedSceneID: UUID?
 
     var displayVehicleName: String {
         if let customVehicleName, !customVehicleName.isEmpty { return customVehicleName }
@@ -369,20 +378,35 @@ final class VehicleController {
     }
 
     func runScene(_ scene: AutomationScene) async {
+        guard activeSceneID == nil, executingAction == nil, phase == .connected else {
+            presentNonfatalError("请等待当前操作完成后再执行场景。")
+            return
+        }
+        let batchID = UUID()
+        let generation = commandAdmission.generation
+        activeSceneID = batchID
+        sceneFailed = false
+        defer {
+            if activeSceneID == batchID { activeSceneID = nil; authorizedSceneID = nil }
+        }
         let containsSensitive = scene.actions.contains(.unlock)
         if faceIDProtection == .all || (faceIDProtection == .sensitive && containsSensitive) {
             guard await authenticateVehicleControl(reason: "确认执行场景“\(scene.name)”") else { return }
         }
-        authorizedCommandBatchActive = true
-        defer { authorizedCommandBatchActive = false }
-        for action in scene.actions {
-            guard phase == .connected || executingAction != nil else { break }
-            switch action {
-            case .unlock: await unlock()
-            case .lock: await lock()
-            case .climate: if !isClimateOn { await toggleClimate() }
-            case .defrost: if !isDefrostOn { await toggleDefrost() }
-            case .sentry: if isSentryAvailable && !isSentryOn { await toggleSentryMode() }
+        guard generation == commandAdmission.generation, activeSceneID == batchID, !Task.isCancelled else { return }
+        authorizedSceneID = batchID
+        await SceneCommandContext.$batchID.withValue(batchID) {
+            for action in scene.actions {
+                guard !sceneFailed, !Task.isCancelled, generation == commandAdmission.generation,
+                      activeSceneID == batchID, phase == .connected else { break }
+                switch action {
+                case .unlock: await unlock()
+                case .lock: await lock()
+                case .climate: if !isClimateOn { await toggleClimate() }
+                case .defrost: if !isDefrostOn { await toggleDefrost() }
+                case .sentry:
+                    if isSentryAvailable && !isSentryOn { await toggleSentryMode() }
+                }
             }
         }
     }
@@ -694,6 +718,7 @@ final class VehicleController {
         // that must survive in the background.
         guard managesPassiveKey, passiveEntryEnabled, connection != nil else { return }
         commandConnectionPausedForBackground = true
+        invalidateCommands()
         tesla?.disconnect()
         legacyClient?.close()
         tesla = nil
@@ -737,14 +762,22 @@ final class VehicleController {
 
     func lock() async {
         if await execute(.lock, name: "上锁", operation: { try await self.perform(modern: { try await $0.lock() }, legacy: { try await $0.rke(1) }) }) {
-            isLocked = true
-            await refreshBasicVehicleState()
+            await confirmLockState()
         }
     }
     func unlock() async {
         if await execute(.unlock, name: "解锁", operation: { try await self.perform(modern: { try await $0.unlock() }, legacy: { try await $0.rke(0) }) }) {
-            isLocked = false
-            await refreshBasicVehicleState()
+            await confirmLockState()
+        }
+    }
+
+    private func confirmLockState() async {
+        let generation = commandAdmission.generation
+        let previous = stateFreshness.dates[.basic]
+        await refreshBasicVehicleState()
+        guard generation == commandAdmission.generation else { return }
+        if previous == stateFreshness.dates[.basic] {
+            stateRefreshMessage = "指令已发送，车辆状态尚未确认"
         }
     }
     func openTrunk() async {
@@ -984,28 +1017,51 @@ final class VehicleController {
               phase == .connected else { return }
         isRefreshingVehicleState = true
         defer { isRefreshingVehicleState = false }
-        await refreshBasicVehicleState()
+        let generation = commandAdmission.generation
+        let previousDates = stateFreshness.dates
+        stateRefreshMessage = nil
+        var alertBattery: Int?
+        var alertDoors: Int?
+        var alertWindows: Int?
+        var alertCharging: ChargingCondition?
+        await refreshBasicVehicleState(withinFullRefresh: true)
+        guard generation == commandAdmission.generation, !Task.isCancelled else { return }
         guard let tesla else {
-            lastStateUpdate = .now
+            if previousDates[.basic] == stateFreshness.dates[.basic] {
+                stateRefreshMessage = "本次未读到车辆状态，显示上次数据"
+            }
             WatchBridge.shared.publish(name: displayVehicleName, battery: batteryLevel, range: estimatedRangeKilometers, locked: isLocked)
             return
         }
-        availableSoftwareVersion = nil
-        softwareUpdateStatus = nil
-        try? await tesla.startInfotainmentSession()
+        if executingAction == nil { try? await tesla.startInfotainmentSession() }
+        guard generation == commandAdmission.generation, !Task.isCancelled else { return }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getChargeState = CarServer_GetChargeState() }), data.hasChargeState {
             apply(data.chargeState)
+            if data.chargeState.optionalBatteryLevel != nil { alertBattery = Int(data.chargeState.batteryLevel) }
+            if data.chargeState.hasChargingState { alertCharging = Self.chargingCondition(data.chargeState) }
         }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getClimateState = CarServer_GetClimateState() }), data.hasClimateState {
             apply(data.climateState)
         }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getClosuresState = CarServer_GetClosuresState() }), data.hasClosuresState {
             apply(data.closuresState)
+            let state = data.closuresState
+            let doors: [Bool?] = [state.optionalDoorOpenDriverFront == nil ? nil : state.doorOpenDriverFront,
+                                 state.optionalDoorOpenDriverRear == nil ? nil : state.doorOpenDriverRear,
+                                 state.optionalDoorOpenPassengerFront == nil ? nil : state.doorOpenPassengerFront,
+                                 state.optionalDoorOpenPassengerRear == nil ? nil : state.doorOpenPassengerRear]
+            let windows: [Bool?] = [state.optionalWindowOpenDriverFront == nil ? nil : state.windowOpenDriverFront,
+                                   state.optionalWindowOpenDriverRear == nil ? nil : state.windowOpenDriverRear,
+                                   state.optionalWindowOpenPassengerFront == nil ? nil : state.windowOpenPassengerFront,
+                                   state.optionalWindowOpenPassengerRear == nil ? nil : state.windowOpenPassengerRear]
+            alertDoors = Self.confirmedOpenCount(doors)
+            alertWindows = Self.confirmedOpenCount(windows)
         }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getTirePressureState = CarServer_GetTirePressureState() }), data.hasTirePressureState {
             apply(data.tirePressureState)
         }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getDriveState = CarServer_GetDriveState() }), data.hasDriveState {
+            stateFreshness.record(.drive)
             currentGear = switch data.driveState.shiftState.type {
             case .p?: "P · 已驻车"
             case .r?: "R · 倒车"
@@ -1026,27 +1082,37 @@ final class VehicleController {
         if let data = await requestVehicleData(from: tesla, configure: { $0.getMediaDetailState = CarServer_GetMediaDetailState() }), data.hasMediaDetailState {
             apply(data.mediaDetailState)
         }
-        lastStateUpdate = .now
+        guard generation == commandAdmission.generation, !Task.isCancelled else { return }
+        let categories: [VehicleStateFreshness.Category] = [.basic, .charge, .climate, .closures, .tires, .drive, .software, .media]
+        if categories.contains(where: { previousDates[$0] == stateFreshness.dates[$0] }) {
+            stateRefreshMessage = executingAction == nil ? "部分状态未更新，显示上次数据" : "已优先处理车辆操作，部分状态稍后刷新"
+        }
         WatchBridge.shared.publish(name: displayVehicleName, battery: batteryLevel, range: estimatedRangeKilometers, locked: isLocked)
         await VehicleAlertManager.evaluate(vehicleID: vehicleID, name: displayVehicleName, preferences: alertPreferences,
-                                           battery: batteryLevel, openDoors: openDoorCount, openWindows: openWindowCount,
-                                           chargingStatus: chargingStatus)
+                                           battery: alertBattery, openDoors: alertDoors, openWindows: alertWindows,
+                                           chargingCondition: alertCharging)
     }
 
     private func requestVehicleData(
         from vehicle: TeslaVehicle,
         configure: (inout CarServer_GetVehicleData) -> Void
     ) async -> CarServer_VehicleData? {
+        guard !Task.isCancelled, executingAction == nil, self.tesla === vehicle else { return nil }
+        let generation = commandAdmission.generation
         var request = CarServer_GetVehicleData()
         configure(&request)
         var action = CarServer_VehicleAction()
         action.getVehicleData = request
         guard let response = try? await vehicle.sendVehicleAction(action, retryOnFailure: false),
-              case .vehicleData(let data)? = response.responseMsg else { return nil }
+              case .vehicleData(let data)? = response.responseMsg,
+              generation == commandAdmission.generation, !Task.isCancelled else { return nil }
         return data
     }
 
-    private func refreshBasicVehicleState() async {
+    private func refreshBasicVehicleState(withinFullRefresh: Bool = false) async {
+        guard executingAction == nil, !Task.isCancelled,
+              !isRefreshingVehicleState || withinFullRefresh else { return }
+        let generation = commandAdmission.generation
         let ownsRefreshLock = !isRefreshingVehicleState
         if ownsRefreshLock {
             guard !isRefreshingMediaState else { return }
@@ -1054,6 +1120,8 @@ final class VehicleController {
         }
         defer { if ownsRefreshLock { isRefreshingVehicleState = false } }
         if let tesla, let status = try? await tesla.vehicleStatus() {
+            guard generation == commandAdmission.generation, !Task.isCancelled else { return }
+            stateFreshness.record(.basic)
             applyRearTrunkState(status.closureStatuses.rearTrunk)
             if let value = Self.isOpen(status.closureStatuses.frontTrunk) { isFrunkOpen = value }
             if let value = Self.isOpen(status.closureStatuses.chargePort) { isChargePortOpen = value }
@@ -1065,6 +1133,8 @@ final class VehicleController {
             default: "状态未知"
             }
         } else if let legacyClient, let status = try? await legacyClient.vehicleStatus() {
+            guard generation == commandAdmission.generation, !Task.isCancelled else { return }
+            stateFreshness.record(.basic)
             if let rearTrunk = status.rearTrunk { applyRearTrunkState(rawValue: rearTrunk) }
             if let frontTrunk = status.frontTrunk, let value = Self.isOpen(rawValue: frontTrunk) { isFrunkOpen = value }
             if let chargePort = status.chargePort, let value = Self.isOpen(rawValue: chargePort) { isChargePortOpen = value }
@@ -1082,7 +1152,6 @@ final class VehicleController {
         if delay > .zero { try? await Task.sleep(for: delay) }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getChargeState = CarServer_GetChargeState() }),
            data.hasChargeState { apply(data.chargeState) }
-        lastStateUpdate = .now
     }
 
     private func refreshClimateState(after delay: Duration = .zero) async {
@@ -1092,7 +1161,6 @@ final class VehicleController {
         if delay > .zero { try? await Task.sleep(for: delay) }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getClimateState = CarServer_GetClimateState() }),
            data.hasClimateState { apply(data.climateState) }
-        lastStateUpdate = .now
     }
 
     private func refreshClosuresState(after delay: Duration = .zero) async {
@@ -1102,7 +1170,6 @@ final class VehicleController {
         if delay > .zero { try? await Task.sleep(for: delay) }
         if let data = await requestVehicleData(from: tesla, configure: { $0.getClosuresState = CarServer_GetClosuresState() }),
            data.hasClosuresState { apply(data.closuresState) }
-        lastStateUpdate = .now
     }
 
     private func scheduleTrunkStateRefresh() {
@@ -1143,7 +1210,27 @@ final class VehicleController {
         }
     }
 
+    static func confirmedOpenCount(_ values: [Bool?]) -> Int? {
+        let known = values.compactMap { $0 }
+        let count = known.filter { $0 }.count
+        return count > 0 || known.count == values.count ? count : nil
+    }
+
+    static func chargingCondition(_ state: CarServer_ChargeState) -> ChargingCondition {
+        switch state.chargingState.type {
+        case .disconnected?: .disconnected
+        case .noPower?: .noPower
+        case .starting?: .starting
+        case .charging?: .charging
+        case .complete?: .complete
+        case .stopped?: .stopped
+        case .calibrating?: .calibrating
+        default: .unknown
+        }
+    }
+
     private func apply(_ state: CarServer_ChargeState) {
+        stateFreshness.record(.charge)
         if state.optionalBatteryLevel != nil { batteryLevel = Int(state.batteryLevel) }
         if state.optionalBatteryRange != nil { estimatedRangeKilometers = Double(state.batteryRange) * 1.609344 }
         if state.optionalChargeLimitSoc != nil { chargeLimit = Int(state.chargeLimitSoc) }
@@ -1201,6 +1288,7 @@ final class VehicleController {
     }
 
     private func apply(_ state: CarServer_ClimateState) {
+        stateFreshness.record(.climate)
         if state.optionalIsClimateOn != nil { isClimateOn = state.isClimateOn }
         if state.optionalInsideTempCelsius != nil { cabinTemperature = Double(state.insideTempCelsius) }
         if state.optionalOutsideTempCelsius != nil { outsideTemperature = Double(state.outsideTempCelsius) }
@@ -1233,6 +1321,7 @@ final class VehicleController {
     }
 
     private func apply(_ state: CarServer_ClosuresState) {
+        stateFreshness.record(.closures)
         if state.optionalSentryModeAvailable != nil {
             isSentryAvailable = state.sentryModeAvailable
         }
@@ -1273,6 +1362,7 @@ final class VehicleController {
     }
 
     private func apply(_ state: CarServer_TirePressureState) {
+        stateFreshness.record(.tires)
         if state.optionalTpmsPressureFl != nil { tirePressureFL = Double(state.tpmsPressureFl) }
         if state.optionalTpmsPressureFr != nil { tirePressureFR = Double(state.tpmsPressureFr) }
         if state.optionalTpmsPressureRl != nil { tirePressureRL = Double(state.tpmsPressureRl) }
@@ -1284,6 +1374,7 @@ final class VehicleController {
     }
 
     private func apply(_ state: CarServer_SoftwareUpdateState) {
+        stateFreshness.record(.software)
         if state.optionalVersion != nil, !state.version.isEmpty {
             availableSoftwareVersion = state.version
         }
@@ -1300,6 +1391,7 @@ final class VehicleController {
     }
 
     private func apply(_ state: CarServer_MediaState) {
+        stateFreshness.record(.media)
         if state.optionalNowPlayingTitle != nil {
             let newTitle = state.nowPlayingTitle.nilIfEmpty
             mediaTitle = newTitle
@@ -1343,6 +1435,7 @@ final class VehicleController {
     }
 
     func disconnect() {
+        invalidateCommands()
         intentionalDisconnect = true
         passiveLifecycle.invalidate(nextState: passiveEntryEnabled ? .idle : .disabled)
         AppDiagnostics.shared.record("ble.passive.lifecycle.invalidated.g\(passiveLifecycle.generation)")
@@ -1371,6 +1464,7 @@ final class VehicleController {
 
     private func restoreCommandConnection(on link: BLEConnection) async {
         guard connection === link, !appIsBackgrounded else { return }
+        invalidateCommands()
         tesla = nil
         legacyClient = nil
         phase = .connecting
@@ -1591,28 +1685,75 @@ final class VehicleController {
         }
     }
 
-    @discardableResult
-    private func execute(_ action: VehicleAction, name: String, operation: () async throws -> Void) async -> Bool {
-        guard tesla != nil || legacyClient != nil else { presentError("请先连接车辆。"); return false }
-        // Tesla vehicle commands share one authenticated BLE session. Serialize them
-        // so a second command cannot replace the first command's presentation state.
-        guard executingAction == nil, !isRefreshingVehicleState, !isRefreshingMediaState,
-              phase == .connected else { return false }
-        let sensitive = action == .unlock || action == .frunk || action == .trunk || action == .drive
-        if !authorizedCommandBatchActive && (faceIDProtection == .all || (faceIDProtection == .sensitive && sensitive)) {
-            guard await authenticateVehicleControl(reason: "确认\(name)") else { return false }
-        }
+    private func invalidateCommands() {
+        commandAdmission.invalidate()
+        executingAction = nil
+        commandProgress = nil
+        activeSceneID = nil
+        authorizedSceneID = nil
         successClearTask?.cancel()
         lastSuccessAction = nil
+    }
+
+    @discardableResult
+    private func execute(_ action: VehicleAction, name: String, operation: () async throws -> Void) async -> Bool {
+        if let activeSceneID, SceneCommandContext.batchID != activeSceneID {
+            presentNonfatalError("场景正在执行，请稍后再试。")
+            return false
+        }
+        guard tesla != nil || legacyClient != nil, phase == .connected else {
+            presentNonfatalError("请先连接车辆。"); sceneFailed = true; return false
+        }
+        guard let ticket = commandAdmission.reserve() else {
+            presentNonfatalError("已有操作正在执行，请稍后再试。"); return false
+        }
+        let originalVehicleID = vehicleID
         executingAction = action
-        AppDiagnostics.shared.record("command.\(action.rawValue).begin")
+        commandProgress = "等待发送"
+        var succeeded = false
+        defer {
+            if commandAdmission.owns(ticket) {
+                commandAdmission.finish(ticket)
+                executingAction = nil
+                commandProgress = nil
+                if case .executing = phase { phase = .connected }
+                if !succeeded { sceneFailed = true }
+            }
+        }
+        func isCurrent() -> Bool {
+            commandAdmission.owns(ticket) && originalVehicleID == vehicleID && !Task.isCancelled
+        }
+        let sensitive = action == .unlock || action == .frunk || action == .trunk || action == .drive
+        let authorizedBatch = authorizedSceneID != nil && authorizedSceneID == SceneCommandContext.batchID
+        if !authorizedBatch && (faceIDProtection == .all || (faceIDProtection == .sensitive && sensitive)) {
+            commandProgress = "等待身份验证"
+            guard await authenticateVehicleControl(reason: "确认\(name)"), isCurrent() else { return false }
+        }
+        // Let the in-flight packet finish; remaining background reads yield to
+        // this reserved command. Never cancel/retry a physical action blindly.
+        commandProgress = "等待发送"
+        let deadline = ContinuousClock.now.advanced(by: .seconds(30))
+        while isRefreshingVehicleState || isRefreshingMediaState {
+            guard isCurrent() else { return false }
+            if ContinuousClock.now >= deadline {
+                presentNonfatalError("车辆状态读取超时，请重新连接后再试。")
+                return false
+            }
+            do { try await Task.sleep(for: .milliseconds(50)) } catch { return false }
+        }
+        guard isCurrent(), phase == .connected, tesla != nil || legacyClient != nil else { return false }
+        successClearTask?.cancel()
+        lastSuccessAction = nil
+        commandProgress = "正在\(name)"
         phase = .executing(name)
+        AppDiagnostics.shared.record("command.\(action.rawValue).begin")
         do {
             try await operation()
+            guard isCurrent() else { return false }
             appendCommandRecord(name: name, succeeded: true)
-            executingAction = nil
             lastSuccessAction = action
             phase = .connected
+            succeeded = true
             AppDiagnostics.shared.record("command.\(action.rawValue).success")
             successClearTask = Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
@@ -1621,15 +1762,15 @@ final class VehicleController {
             }
             return true
         } catch {
+            guard isCurrent() else { return false }
             AppDiagnostics.shared.record("command.\(action.rawValue).failed")
             appendCommandRecord(name: name, succeeded: false)
-            executingAction = nil
+            phase = .connected
             if case LocalError.vehicleIdentityUnavailable = error {
-                phase = .connected
                 showingVehicleIdentity = true
-                return false
+            } else {
+                presentNonfatalError(Self.describe(error))
             }
-            presentError(Self.describe(error))
             return false
         }
     }
@@ -1816,7 +1957,8 @@ final class VehicleController {
         vehicleSchedules = []; nearbyChargingSites = []; isLoadingNearbyChargingSites = false
         nearbyChargingSitesMessage = nil; nearbyChargingSitesUpdatedAt = nil
         scheduleLocationName = nil; scheduleLatitude = nil; scheduleLongitude = nil
-        lastStateUpdate = nil; executingAction = nil; lastSuccessAction = nil
+        stateFreshness = VehicleStateFreshness(); stateRefreshMessage = nil
+        executingAction = nil; lastSuccessAction = nil
     }
 
     private static func describe(_ error: Error) -> String {

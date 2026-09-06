@@ -32,6 +32,14 @@ struct VehicleControlView: View {
             fixedHeader
             ScrollView {
                 VStack(spacing: 0) {
+                    if let progress = vehicle.commandProgress {
+                        Text(progress).font(.caption).foregroundStyle(AppTheme.muted)
+                            .padding(.vertical, 8)
+                    }
+                    if let message = vehicle.stateRefreshMessage {
+                        Text(message).font(.caption).foregroundStyle(AppTheme.muted)
+                            .padding(.vertical, 8)
+                    }
                     ForEach(homeCardOrder) { card in
                         if !hiddenHomeCards.contains(card) {
                             homeCard(card)

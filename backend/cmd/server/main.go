@@ -201,6 +201,8 @@ type server struct {
 	http      *http.Client
 	proxyHTTP *http.Client
 	logger    *slog.Logger
+	refreshMu sync.Mutex
+	refreshes map[string]*sessionRefresh
 }
 
 func newServer(c config, s *store) (*server, error) {
@@ -440,7 +442,14 @@ func (s *server) tokenRequest(ctx context.Context, form url.Values) (teslaTokenR
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode/100 != 2 {
-		return teslaTokenResponse{}, fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, redactBody(b))
+		var detail struct {
+			Error string `json:"error"`
+		}
+		_ = json.Unmarshal(b, &detail)
+		if resp.StatusCode == http.StatusBadRequest && detail.Error == "invalid_grant" {
+			return teslaTokenResponse{}, errAuthorizationExpired
+		}
+		return teslaTokenResponse{}, fmt.Errorf("token endpoint returned %d", resp.StatusCode)
 	}
 	var result teslaTokenResponse
 	if err := json.Unmarshal(b, &result); err != nil {
@@ -468,11 +477,17 @@ func (s *server) requireSession(next func(http.ResponseWriter, *http.Request, se
 			problem(w, 401, "invalid_session", "Session is invalid or expired")
 			return
 		}
-		if time.Until(entry.TeslaExpiresAt) < 2*time.Minute {
+		// Local revocation must work even when Tesla is unavailable or has
+		// already revoked its authorization.
+		if r.Method != http.MethodDelete && time.Until(entry.TeslaExpiresAt) < 2*time.Minute {
 			updated, err := s.refreshSession(r.Context(), entry)
 			if err != nil {
 				s.logger.Error("Tesla token refresh failed", "session", entry.ID, "error", err)
-				problem(w, 401, "tesla_session_expired", "Tesla authorization must be renewed")
+				if errors.Is(err, errAuthorizationExpired) || errors.Is(err, errSessionRevoked) {
+					problem(w, 401, "tesla_session_expired", "Tesla authorization must be renewed")
+				} else {
+					problem(w, 503, "tesla_temporarily_unavailable", "Tesla is temporarily unavailable; retry later")
+				}
 				return
 			}
 			entry = updated
@@ -481,7 +496,7 @@ func (s *server) requireSession(next func(http.ResponseWriter, *http.Request, se
 	}
 }
 
-func (s *server) refreshSession(ctx context.Context, entry session) (session, error) {
+func (s *server) refreshSessionTokens(ctx context.Context, entry session) (session, error) {
 	tokens, err := s.refreshTeslaToken(ctx, entry.TeslaRefreshToken)
 	if err != nil {
 		return entry, err
@@ -496,12 +511,22 @@ func (s *server) refreshSession(ctx context.Context, entry session) (session, er
 	}
 	entry.TeslaAccessToken, entry.TeslaRefreshToken = access, refresh
 	entry.TeslaExpiresAt, entry.UpdatedAt, entry.Scopes = time.Now().Add(time.Duration(tokens.ExpiresIn)*time.Second), time.Now(), tokens.Scope
-	err = s.store.update(func(d *storeData) error { d.Sessions[entry.ID] = entry; return nil })
+	err = s.store.update(func(d *storeData) error {
+		current, ok := d.Sessions[entry.ID]
+		if !ok || current.TokenHash != entry.TokenHash || !time.Now().Before(current.ExpiresAt) {
+			return errSessionRevoked
+		}
+		d.Sessions[entry.ID] = entry
+		return nil
+	})
 	return entry, err
 }
 
 func (s *server) logout(w http.ResponseWriter, _ *http.Request, entry session) {
-	_ = s.store.update(func(d *storeData) error { delete(d.Sessions, entry.ID); return nil })
+	if err := s.store.update(func(d *storeData) error { delete(d.Sessions, entry.ID); return nil }); err != nil {
+		problem(w, 500, "session_revoke_failed", "Could not persist session revocation")
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
