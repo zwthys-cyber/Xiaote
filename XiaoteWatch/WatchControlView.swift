@@ -44,7 +44,16 @@ struct WatchControlView: View {
                     control(.horn, label: "鸣笛", symbol: "speaker.wave.2.fill")
                 }.disabled(!bridge.canSend)
                 if bridge.tracking.isPending { ProgressView().controlSize(.small).accessibilityLabel("等待车辆执行") }
-                Text(LocalizedStringKey(bridge.status)).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                if let request = bridge.tracking.request {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text(bridge.tracking.isPending ? "本次操作" : "上次操作")
+                            Text(request.issuedAt, style: .relative)
+                        }
+                        Text(LocalizedStringKey(bridge.status)).multilineTextAlignment(.center)
+                    }
+                    .font(.caption2).foregroundStyle(.secondary)
+                }
                 Button("刷新连接") { bridge.refreshConnection() }.font(.caption)
             }
         }

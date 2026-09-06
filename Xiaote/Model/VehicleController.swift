@@ -183,7 +183,7 @@ final class VehicleController {
     var stateRefreshMessage: String?
     var commandProgress: String?
     var lastStateUpdate: Date? {
-        stateFreshness.updatedAt(requiring: currentVIN == nil ? [.basic] : [.basic, .charge, .climate, .closures])
+        stateFreshness.updatedAt(requiring: currentVIN == nil ? [.lock] : [.lock, .battery, .range, .climate, .closures])
     }
     private var commandAdmission = CommandAdmission()
     private var activeSceneID: UUID?

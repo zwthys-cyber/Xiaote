@@ -71,10 +71,8 @@ final class WatchPhoneBridge: NSObject, ObservableObject, WCSessionDelegate {
         if let data = context["snapshotV2"] as? Data,
            let incoming = try? JSONDecoder().decode(WatchVehicleSnapshot.self, from: data),
            snapshot == nil || incoming.publishedAt >= snapshot!.publishedAt {
-            if let old = snapshot, old.vehicleID != incoming.vehicleID {
-                tracking = WatchCommandTracking()
-                timeoutTask?.cancel()
-            }
+            tracking.selectVehicle(incoming.vehicleID)
+            if !tracking.isPending { timeoutTask?.cancel() }
             snapshot = incoming
         }
         if let data = context["resultV2"] as? Data,

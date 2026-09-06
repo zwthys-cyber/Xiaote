@@ -198,3 +198,6 @@
 "继续编辑" = "Keep Editing";
 "场景已停止，后续操作未执行" = "Scene Stopped; Remaining Actions Not Executed";
 "动作按列表顺序依次执行。失败后停止后续操作；仅收到指令确认时，会显示状态待确认。" = "Actions run in order and stop after a failure. An accepted command without a state readback is shown as awaiting confirmation.";
+
+"本次操作" = "Current Action";
+"上次操作" = "Last Action";

@@ -14,6 +14,8 @@ struct VehicleConnectionSummary: View {
                 Button(action: openAccount) {
                     row("远程连接", value: cloudTitle(at: timeline.date), symbol: "network",
                         ready: account.connectionState == .available && VehicleDataAge.isFresh(account.lastAccountUpdate, at: timeline.date))
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("查看账号或重新登录")

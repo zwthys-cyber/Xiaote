@@ -195,6 +195,12 @@ struct VehicleControlView: View {
     }
 
     private var vehicleSummary: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { context in
+            vehicleSummaryContent(at: context.date)
+        }
+    }
+
+    private func vehicleSummaryContent(at now: Date) -> some View {
         VStack(spacing: 13) {
             NavigationLink {
                 VehicleDetailView()
@@ -211,7 +217,7 @@ struct VehicleControlView: View {
                             Text(vehicle.phase.title).font(.subheadline.weight(.semibold))
 
                         }
-                        Text(statusSummary).font(.caption).foregroundStyle(AppTheme.muted)
+                        Text(statusSummary(at: now)).font(.caption).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
                     if busy { ProgressView().controlSize(.small).tint(.white) }
@@ -235,7 +241,7 @@ struct VehicleControlView: View {
                         .accessibilityLabel("预计续航 \(Int(range)) 公里")
                 }
                 Spacer(minLength: 8)
-                compactLockButton
+                compactLockButton(at: now)
             }
             .font(.subheadline.weight(.semibold))
             .monospacedDigit()
@@ -276,8 +282,8 @@ struct VehicleControlView: View {
         UserDefaults.standard.set(hiddenHomeCards.map(\.rawValue), forKey: AppStorageKeys.hiddenHomeCardsPrefix + vehicle.vehicleID)
     }
 
-    private var compactLockButton: some View {
-        let lockIsFresh = VehicleDataAge.isFresh(vehicle.stateFreshness.dates[.lock])
+    private func compactLockButton(at now: Date) -> some View {
+        let lockIsFresh = VehicleDataAge.isFresh(vehicle.stateFreshness.dates[.lock], at: now)
         let action: VehicleController.VehicleAction = lockIsFresh && vehicle.isLocked == true ? .unlock : .lock
         let label = action == .unlock ? "解锁车辆" : "锁定车辆"
         return Button {
@@ -518,9 +524,9 @@ struct VehicleControlView: View {
         await vehicle.authorizeDrive()
     }
 
-    private var statusSummary: String {
+    private func statusSummary(at now: Date) -> String {
         guard connected else { return "轻点重新连接" }
-        let fresh = VehicleDataAge.isFresh(vehicle.stateFreshness.dates[.lock])
+        let fresh = VehicleDataAge.isFresh(vehicle.stateFreshness.dates[.lock], at: now)
         let lock = fresh ? (vehicle.isLocked.map { $0 ? "已上锁" : "已解锁" } ?? "锁车状态读取中") : "门锁状态待刷新"
         let odometer = vehicle.odometerKilometers.map {
             "累计 \($0.formatted(.number.precision(.fractionLength(0)))) km"
