@@ -9,9 +9,9 @@ struct TeslaAccountView: View {
         NavigationStack {
             TrailingDotsRefreshScrollView(isEnabled: account.isSignedIn) {
                 await account.refreshAccount()
-            } content: {
+            } content: { isPresentingRefresh in
                 Group {
-                    if account.isSignedIn { signedInContent }
+                    if account.isSignedIn { signedInContent(isPresentingRefresh: isPresentingRefresh) }
                     else { signedOutContent }
                 }
                 .frame(maxWidth: 520)
@@ -56,7 +56,7 @@ struct TeslaAccountView: View {
         }
     }
 
-    private var signedInContent: some View {
+    private func signedInContent(isPresentingRefresh: Bool) -> some View {
         VStack(spacing: 0) {
             if account.needsReauthentication || account.connectionState == .unavailable {
                 VStack(spacing: 10) {
@@ -71,7 +71,7 @@ struct TeslaAccountView: View {
                 }
                 .padding(.vertical, 20)
             }
-            if account.isWorking && account.vehicles.isEmpty {
+            if account.isWorking && account.vehicles.isEmpty && !isPresentingRefresh {
                 loadingState.padding(.top, 48)
             } else if account.vehicles.isEmpty {
                 emptyVehicleState.padding(.top, 38)
@@ -119,8 +119,7 @@ struct TeslaAccountView: View {
                 Task { await account.refreshVehicles() }
             } label: {
                 HStack(spacing: 7) {
-                    if account.isWorking { TrailingDots(size: 18) }
-                    else { Image(systemName: "arrow.clockwise") }
+                    Image(systemName: "arrow.clockwise")
                     Text("重新同步")
                 }
                 .font(.subheadline.weight(.semibold))
