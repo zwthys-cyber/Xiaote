@@ -12,6 +12,7 @@ struct VehicleControlView: View {
     @Environment(FleetAccountController.self) private var fleetAccount
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @State private var isPullRefreshing = false
     @State private var confirmForget = false
     @State private var confirmDrive = false
     @State private var showingAddVehicle = false
@@ -51,6 +52,8 @@ struct VehicleControlView: View {
             }
             .scrollIndicators(.hidden)
             .refreshable {
+                isPullRefreshing = true
+                defer { isPullRefreshing = false }
                 await vehicle.refreshVehicleState()
             }
         }
@@ -220,7 +223,7 @@ struct VehicleControlView: View {
                         Text(statusSummary(at: now)).font(.caption).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
-                    if busy { ProgressView().controlSize(.small).tint(.white) }
+                    if busy && !isPullRefreshing { ProgressView().controlSize(.small).tint(.white) }
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(AppTheme.muted)
