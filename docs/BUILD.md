@@ -4,7 +4,7 @@
 
 - iOS deployment target：17.0
 - watchOS deployment target：10.0
-- GitHub Runner：`macos-26`
+- GitHub Runner：带有 `xiaote-mac` 标签的自托管 Apple Silicon Mac
 - Xcode：26.2
 - Swift Package Manager：解析 `project.yml` 中固定 revision
 - 工程生成器：XcodeGen
@@ -21,10 +21,11 @@ open Xiaote.xcodeproj
 
 ## GitHub Actions
 
-`.github/workflows/build.yml` 在 `main` push、Pull Request 和手动触发时运行两个 Job：
+`.github/workflows/build.yml` 在 `main` push、Pull Request 和手动触发时运行三个 Job：
 
-1. `Tesla protocol tests` 检出 `zwthys-cyber/TeslaBLEKeyKit` 的固定提交并执行 `swift test`。
-2. `Build unsigned TrollStore IPA` 生成 Xcode 工程、解析固定依赖、以禁用代码签名的 Release 配置编译真实 iPhone 目标，并打包 `Payload/Xiaote.app`。
+1. `Fleet API backend tests` 执行 `go test ./...` 与 `go vet ./...`。
+2. `Tesla protocol tests` 检出 `zwthys-cyber/TeslaBLEKeyKit` 的固定提交并执行 `swift test`。
+3. `Build unsigned TrollStore IPA` 生成 Xcode 工程、解析固定依赖、以禁用代码签名的 Release 配置编译真实 iPhone 目标，并打包 `Payload/Xiaote.app`。
 
 主 App 嵌入 watchOS 配套应用。无 Apple Watch 时不影响 iPhone 功能；TrollStore 对嵌入式 Watch App 的安装取决于系统和配对状态，CI 只验证编译与嵌入结构。
 
