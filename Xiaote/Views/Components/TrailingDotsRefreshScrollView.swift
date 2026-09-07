@@ -4,7 +4,7 @@ struct TrailingDotsRefreshScrollView<Content: View>: View {
     private let threshold: CGFloat = 72
     private let isEnabled: Bool
     private let action: @MainActor () async -> Void
-    private let content: Content
+    private let content: (Bool) -> Content
 
     @State private var pullDistance: CGFloat = 0
     @State private var previousPullDistance: CGFloat = 0
@@ -14,11 +14,11 @@ struct TrailingDotsRefreshScrollView<Content: View>: View {
     init(
         isEnabled: Bool = true,
         action: @escaping @MainActor () async -> Void,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: @escaping (Bool) -> Content
     ) {
         self.isEnabled = isEnabled
         self.action = action
-        self.content = content()
+        self.content = content
     }
 
     var body: some View {
@@ -32,13 +32,13 @@ struct TrailingDotsRefreshScrollView<Content: View>: View {
             }
             .frame(height: 0)
 
-            content
+            content(isPresentingRefresh)
         }
         .coordinateSpace(name: "trailing-dots-refresh")
         .scrollIndicators(.hidden)
         .onPreferenceChange(PullDistancePreferenceKey.self, perform: updatePullDistance)
         .overlay(alignment: .top) {
-            if isEnabled && (pullDistance > 2 || isRefreshing) {
+            if isPresentingRefresh {
                 TrailingDots(size: 28)
                     .padding(8)
                     .background(.black.opacity(0.72), in: Circle())
@@ -52,6 +52,10 @@ struct TrailingDotsRefreshScrollView<Content: View>: View {
         .accessibilityAction(named: Text("刷新")) {
             beginRefresh()
         }
+    }
+
+    private var isPresentingRefresh: Bool {
+        isEnabled && (pullDistance > 2 || isRefreshing)
     }
 
     private var pullProgress: CGFloat {

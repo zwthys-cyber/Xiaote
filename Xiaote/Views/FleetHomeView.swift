@@ -3,6 +3,7 @@ import SwiftUI
 struct FleetHomeView: View {
     @Environment(FleetAccountController.self) private var account
     @Environment(VehicleController.self) private var localVehicle
+    @State private var isPullRefreshing = false
     @State private var showingAccount = false
     @State private var showingBluetoothPairing = false
 
@@ -19,7 +20,11 @@ struct FleetHomeView: View {
                 .padding(.vertical, 18)
             }
             .scrollIndicators(.hidden)
-            .refreshable { await account.refreshVehicles() }
+            .refreshable {
+                isPullRefreshing = true
+                defer { isPullRefreshing = false }
+                await account.refreshVehicles()
+            }
         }
         .background(AppTheme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
@@ -77,7 +82,7 @@ struct FleetHomeView: View {
                 }
             }
             Spacer()
-            if account.isWorking { ProgressView().controlSize(.small).tint(.white) }
+            if account.isWorking && !isPullRefreshing { ProgressView().controlSize(.small).tint(.white) }
         }
         .padding(16)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
