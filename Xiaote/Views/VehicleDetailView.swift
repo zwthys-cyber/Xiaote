@@ -238,6 +238,7 @@ struct VehicleDetailView: View {
         return vehicle.vehicleSleepStatus
     }
     private var updateLabel: String {
+        if let message = vehicle.stateRefreshMessage { return message }
         guard let date = vehicle.lastStateUpdate else { return refreshing ? "正在读取车辆状态" : "尚未刷新" }
         return "更新于 \(date.formatted(date: .omitted, time: .shortened))"
     }

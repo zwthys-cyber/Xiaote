@@ -58,6 +58,19 @@ struct TeslaAccountView: View {
 
     private var signedInContent: some View {
         VStack(spacing: 0) {
+            if account.needsReauthentication || account.connectionState == .unavailable {
+                VStack(spacing: 10) {
+                    Text(account.connectionState.title).font(.headline)
+                    Button(account.needsReauthentication ? "重新登录" : "重试连接") {
+                        Task {
+                            if account.needsReauthentication { await account.signIn() }
+                            else { await account.refreshAccount() }
+                        }
+                    }
+                    .disabled(account.isWorking)
+                }
+                .padding(.vertical, 20)
+            }
             if account.isWorking && account.vehicles.isEmpty {
                 loadingState.padding(.top, 48)
             } else if account.vehicles.isEmpty {

@@ -1,4 +1,5 @@
 import AppIntents
+import Foundation
 
 private enum ShortcutError: LocalizedError {
     case commandFailed
@@ -16,10 +17,11 @@ struct LockVehicleIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let controller = VehicleController(managesPassiveKey: false)
+        defer { controller.disconnect() }
         try await controller.connect()
-        await controller.lock()
-        guard controller.lastSuccessAction == .lock else { throw ShortcutError.commandFailed }
-        controller.disconnect()
+        let started = Date()
+        guard await controller.lock(), controller.isLocked == true,
+              let updated = controller.stateFreshness.dates[.lock], updated >= started else { throw ShortcutError.commandFailed }
         return .result(dialog: "车辆已锁定")
     }
 }
@@ -32,10 +34,11 @@ struct UnlockVehicleIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let controller = VehicleController(managesPassiveKey: false)
+        defer { controller.disconnect() }
         try await controller.connect()
-        await controller.unlock()
-        guard controller.lastSuccessAction == .unlock else { throw ShortcutError.commandFailed }
-        controller.disconnect()
+        let started = Date()
+        guard await controller.unlock(), controller.isLocked == false,
+              let updated = controller.stateFreshness.dates[.lock], updated >= started else { throw ShortcutError.commandFailed }
         return .result(dialog: "车辆已解锁")
     }
 }
@@ -48,10 +51,11 @@ struct ClimateVehicleIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let controller = VehicleController(managesPassiveKey: false)
+        defer { controller.disconnect() }
         try await controller.connect()
-        if !controller.isClimateOn { await controller.toggleClimate() }
-        guard controller.isClimateOn else { throw ShortcutError.commandFailed }
-        controller.disconnect()
+        let started = Date()
+        guard await controller.setClimateEnabled(true), controller.isClimateOn,
+              let updated = controller.stateFreshness.dates[.climateEnabled], updated >= started else { throw ShortcutError.commandFailed }
         return .result(dialog: "车辆空调已开启")
     }
 }
@@ -64,10 +68,10 @@ struct StartChargingVehicleIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let controller = VehicleController(managesPassiveKey: false)
+        defer { controller.disconnect() }
         try await controller.connect()
         if !controller.isCharging { await controller.toggleCharging() }
         guard controller.isCharging else { throw ShortcutError.commandFailed }
-        controller.disconnect()
         return .result(dialog: "车辆已开始充电")
     }
 }
@@ -80,10 +84,9 @@ struct FlashVehicleLightsIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let controller = VehicleController(managesPassiveKey: false)
+        defer { controller.disconnect() }
         try await controller.connect()
-        await controller.flashLights()
-        guard controller.lastSuccessAction == .flash else { throw ShortcutError.commandFailed }
-        controller.disconnect()
+        guard await controller.flashLights() else { throw ShortcutError.commandFailed }
         return .result(dialog: "车辆已闪灯")
     }
 }
@@ -96,10 +99,9 @@ struct HonkVehicleIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let controller = VehicleController(managesPassiveKey: false)
+        defer { controller.disconnect() }
         try await controller.connect()
-        await controller.honk()
-        guard controller.lastSuccessAction == .horn else { throw ShortcutError.commandFailed }
-        controller.disconnect()
+        guard await controller.honk() else { throw ShortcutError.commandFailed }
         return .result(dialog: "车辆已鸣笛")
     }
 }
