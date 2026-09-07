@@ -25,7 +25,7 @@ struct VehicleAlertsView: View {
                         Stepper("低于 \(preferences.lowBatteryThreshold)%", value: $preferences.lowBatteryThreshold, in: 5...50, step: 5)
                     }
                     Toggle("车门或车窗未关", isOn: $preferences.doorsAndWindows)
-                    Toggle("充电停止或无电力", isOn: $preferences.chargingIssues)
+                    Toggle("充电供电提醒", isOn: $preferences.chargingIssues)
                 }.disabled(!preferences.enabled)
                 Section { Text("提醒在 App 刷新到车辆真实状态或 iOS 恢复蓝牙会话时触发，不是云端全天候监控。") }
                 if !cloudAlerts.isEmpty {
