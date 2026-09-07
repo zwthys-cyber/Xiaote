@@ -107,13 +107,14 @@ private struct ScheduleEditorView: View {
 }
 
 struct NearbyChargingSitesView: View {
+    @State private var isPullRefreshing = false
     @Environment(VehicleController.self) private var vehicle
     @Environment(FleetAccountController.self) private var fleetAccount
     var body: some View {
         List {
             if vehicle.isLoadingNearbyChargingSites, vehicle.nearbyChargingSites.isEmpty, cloudSites.isEmpty {
                 HStack(spacing: 12) {
-                    ProgressView()
+                    if !isPullRefreshing { ProgressView() }
                     Text("正在通过车辆查询附近充电站…")
                         .foregroundStyle(.secondary)
                 }
@@ -194,7 +195,11 @@ struct NearbyChargingSitesView: View {
         }
         .scrollContentBackground(.hidden)
         .appDestinationPage(title: "附近超级充电站")
-        .refreshable { await refreshSites() }
+        .refreshable {
+            isPullRefreshing = true
+            defer { isPullRefreshing = false }
+            await refreshSites()
+        }
         .task { await refreshSites() }
     }
 
