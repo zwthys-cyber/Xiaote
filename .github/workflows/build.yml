@@ -5,12 +5,17 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_on_mac:
+        description: Build and run iOS UI tests on the registered Xiaote Mac
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: xiaote-mac-${{ github.ref }}
+  group: xiaote-mac-${{ github.ref }}-${{ inputs.build_on_mac || false }}
   cancel-in-progress: true
 
 jobs:
@@ -60,13 +65,22 @@ jobs:
   build-app:
     name: Build unsigned TrollStore IPA
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-26
+    runs-on: ${{ fromJSON(inputs.build_on_mac && '["self-hosted", "macOS", "ARM64", "xiaote-mac"]' || '["macos-26"]') }}
     timeout-minutes: 45
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Select Xcode
+        env:
+          BUILD_ON_MAC: ${{ inputs.build_on_mac || false }}
+        run: |
+          if [ "$BUILD_ON_MAC" = "true" ]; then
+            selected_xcode=$(xcode-select -p)
+          else
+            selected_xcode=/Applications/Xcode_26.2.app/Contents/Developer
+          fi
+          echo "DEVELOPER_DIR=$selected_xcode" >> "$GITHUB_ENV"
 
       - name: Install pinned XcodeGen
         env:
