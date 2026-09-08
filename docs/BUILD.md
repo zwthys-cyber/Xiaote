@@ -4,7 +4,7 @@
 
 - iOS deployment target：17.0
 - watchOS deployment target：10.0
-- GitHub Runner：带有 `xiaote-mac` 标签的自托管 Apple Silicon Mac
+- GitHub Runner：默认 `macos-26`；手动勾选 `build_on_mac` 可使用带有 `xiaote-mac` 标签的自托管 Apple Silicon Mac
 - Xcode：26.2
 - Swift Package Manager：解析 `project.yml` 中固定 revision
 - 工程生成器：XcodeGen
