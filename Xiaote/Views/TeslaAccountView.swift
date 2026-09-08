@@ -4,6 +4,7 @@ struct TeslaAccountView: View {
     @Environment(FleetAccountController.self) private var account
     @Environment(\.dismiss) private var dismiss
     @State private var confirmSignOut = false
+    @State private var initialLoadComplete = false
 
     var body: some View {
         NavigationStack {
@@ -47,6 +48,7 @@ struct TeslaAccountView: View {
             }
             .task {
                 if account.isSignedIn && account.vehicles.isEmpty { await account.refreshAccount() }
+                initialLoadComplete = true
             }
         }
         .preferredColorScheme(.dark)
@@ -71,7 +73,7 @@ struct TeslaAccountView: View {
                 }
                 .padding(.vertical, 20)
             }
-            if account.isWorking && account.vehicles.isEmpty && !isPresentingRefresh {
+            if (!initialLoadComplete || account.isWorking) && account.vehicles.isEmpty && !isPresentingRefresh {
                 loadingState.padding(.top, 48)
             } else if account.vehicles.isEmpty {
                 emptyVehicleState.padding(.top, 38)
