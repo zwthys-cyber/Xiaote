@@ -6,8 +6,10 @@ import SwiftUI
 struct FleetUITestHarness: View {
     @State private var account: FleetAccountController
     @State private var ready = false
+    @State private var localVehicle: VehicleController
     private let emptyAccount: Bool
     private let largeText: Bool
+    private let localHome: Bool
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -19,12 +21,32 @@ struct FleetUITestHarness: View {
         ))
         emptyAccount = ProcessInfo.processInfo.arguments.contains("--empty-account")
         largeText = ProcessInfo.processInfo.arguments.contains("--large-text")
+        localHome = ProcessInfo.processInfo.arguments.contains("--local-home")
+        let local = VehicleController(managesPassiveKey: false)
+        local.vehicleID = "S0123456789abcdefC"
+        local.isPaired = true
+        local.phase = .connected
+        local.customVehicleName = "小特 Model 3"
+        local.passiveKeyOnline = true
+        local.batteryLevel = 76
+        local.estimatedRangeKilometers = 339
+        local.isLocked = true
+        local.cabinTemperature = 23.5
+        local.chargingStatus = "未充电"
+        local.chargeLimit = 80
+        local.stateFreshness.record(.battery)
+        local.stateFreshness.record(.range)
+        local.stateFreshness.record(.lock)
+        local.automationScenes = [.init(id: UUID(), name: "离车", symbol: "figure.walk.departure", actions: [.lock, .sentry])]
+        _localVehicle = State(initialValue: local)
     }
 
     var body: some View {
         Group {
             if ready {
-                if emptyAccount { TeslaAccountView().environment(account) }
+                if localHome {
+                    NavigationStack { VehicleControlView().environment(localVehicle).environment(account) }
+                } else if emptyAccount { TeslaAccountView().environment(account) }
                 else if let vehicle = account.vehicles.first {
                     NavigationStack { FleetVehicleControlView(account: account, vehicle: vehicle) }
                 }

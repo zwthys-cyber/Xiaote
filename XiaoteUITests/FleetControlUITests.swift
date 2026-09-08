@@ -106,4 +106,46 @@ final class FleetControlUITests: XCTestCase {
         XCTAssertTrue(app.buttons["唤醒车辆"].exists)
         capture("remote-vehicle-unavailable")
     }
+
+    func testLocalHomeAndSecuritySettingsAtLargeText() {
+        let app = launch("--local-home", "--large-text")
+        let options = app.buttons["车辆选项"]
+        XCTAssertTrue(options.waitForExistence(timeout: 10))
+        capture("local-home-accessibility-text")
+        options.tap()
+        app.buttons["Face ID 保护"].tap()
+        XCTAssertTrue(app.navigationBars["Face ID 保护"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["完成"].isHittable)
+        capture("local-security-accessibility-text")
+        app.buttons["完成"].tap()
+        XCTAssertTrue(options.isHittable)
+    }
+
+    func testLocalChargingAndSceneEditorNavigation() {
+        let app = launch("--local-home")
+        XCTAssertTrue(app.buttons["车辆选项"].waitForExistence(timeout: 10))
+        capture("local-home")
+        let charging = app.buttons["充电"].firstMatch
+        reveal(charging, in: app)
+        charging.tap()
+        XCTAssertTrue(app.navigationBars["充电"].waitForExistence(timeout: 5))
+        capture("local-charging")
+        app.navigationBars.buttons.firstMatch.tap()
+        let rail = app.scrollViews["车辆功能"]
+        let scenes = app.buttons["场景"].firstMatch
+        for _ in 0..<4 {
+            if scenes.exists && scenes.isHittable { break }
+            rail.swipeLeft()
+        }
+        XCTAssertTrue(scenes.isHittable)
+        scenes.tap()
+        let add = app.buttons["添加场景"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        capture("local-scenes")
+        add.tap()
+        XCTAssertTrue(app.textFields["场景名称"].waitForExistence(timeout: 5))
+        capture("local-scene-editor")
+        app.buttons["取消"].tap()
+        XCTAssertTrue(add.isHittable)
+    }
 }

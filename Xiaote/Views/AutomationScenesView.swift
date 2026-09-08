@@ -47,7 +47,10 @@ struct AutomationScenesView: View {
         }
         .scrollContentBackground(.hidden)
         .appDestinationPage(title: "自动化场景")
-        .toolbar { Button { editingScene = newScene } label: { Image(systemName: "plus") }.disabled(vehicle.isSceneRunning) }
+        .toolbar {
+            Button { editingScene = newScene } label: { Image(systemName: "plus") }
+                .disabled(vehicle.isSceneRunning).accessibilityLabel("添加场景")
+        }
         .fullScreenCover(item: $editingScene) { scene in SceneEditorView(scene: scene).environment(vehicle) }
     }
 
