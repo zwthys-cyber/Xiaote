@@ -6,6 +6,7 @@ struct PairVehicleView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     var showsCloseButton = false
+    var automaticallyScans = true
     @State private var scanner = NearbyTeslaScanner()
     @State private var selectedVehicle: NearbyTesla?
     @State private var selectionWasManual = false
@@ -15,9 +16,16 @@ struct PairVehicleView: View {
         VStack(spacing: 0) {
             header
             if scanner.vehicles.isEmpty || isPairing {
-                Spacer(minLength: 28)
-                pairingStage
-                Spacer(minLength: 28)
+                GeometryReader { geometry in
+                    ScrollView {
+                        pairingStage
+                            .padding(.vertical, 28)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: geometry.size.height)
+                    }
+                    .scrollIndicators(.hidden)
+                    .scrollBounceBehavior(.basedOnSize)
+                }
             } else {
                 vehiclePicker
             }
@@ -30,7 +38,7 @@ struct PairVehicleView: View {
             actionArea
         }
         .preferredColorScheme(.dark)
-        .task { scanner.start() }
+        .task { if automaticallyScans { scanner.start() } }
         .onDisappear { scanner.stop() }
         .onChange(of: scanner.vehicles) { _, vehicles in
             guard vehicle.phase != .pairingAwaitingCard else { return }
@@ -203,7 +211,8 @@ struct PairVehicleView: View {
                 if isPairing { ProgressView().controlSize(.small).tint(.black) }
                 Text(actionTitle).font(.headline)
             }
-            .frame(maxWidth: .infinity).frame(height: 56)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 56)
             .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .foregroundStyle(.black)
         }

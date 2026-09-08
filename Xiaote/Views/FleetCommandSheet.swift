@@ -24,7 +24,7 @@ struct FleetCommandSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Label(command.summary, systemImage: command.symbol).font(.headline).padding(.vertical, 8)
+                    Label(LocalizedStringKey(command.summary), systemImage: command.symbol).font(.headline).padding(.vertical, 8)
                     LabeledContent("车辆", value: control.vehicle.name)
                     LabeledContent("识别码", value: "•••• \(control.vehicle.vin.suffix(4))")
                 }
@@ -37,7 +37,7 @@ struct FleetCommandSheet: View {
                     .disabled(isSending)
                 }
                 if !form.note.isEmpty {
-                    Section { Text(form.note).font(.subheadline).foregroundStyle(.secondary) }
+                    Section { Text(LocalizedStringKey(form.note)).font(.subheadline).foregroundStyle(.secondary) }
                         .listRowBackground(AppTheme.surface)
                 }
                 if let feedback {
@@ -56,7 +56,7 @@ struct FleetCommandSheet: View {
                         HStack(spacing: 10) {
                             Spacer(minLength: 0)
                             if isSending { ProgressView().tint(.black) }
-                            Text(isSending ? "正在发送…" : succeeded ? "车辆已接受指令" : command.title)
+                            Text(LocalizedStringKey(isSending ? "正在发送…" : succeeded ? "车辆已接受指令" : command.title))
                                 .font(.body.weight(.semibold))
                             Spacer(minLength: 0)
                         }
@@ -77,14 +77,14 @@ struct FleetCommandSheet: View {
             }
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
-            .appDestinationPage(title: command.title)
+            .appDestinationPage(title: NSLocalizedString(command.title, comment: ""))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("完成") { dismiss() }.disabled(isSending)
                 }
             }
             .confirmationDialog("确认\(command.title)？", isPresented: $confirmSensitive, titleVisibility: .visible) {
-                Button(command.title) { send() }
+                Button(LocalizedStringKey(command.title)) { send() }
                 Button("取消", role: .cancel) {}
             } message: { Text("车辆：\(control.vehicle.name) · \(control.vehicle.vin.suffix(4))") }
             .onChange(of: values) { _, _ in succeeded = false; feedback = nil }
@@ -106,23 +106,23 @@ struct FleetCommandSheet: View {
                 set: { values[field.id] = String($0) }
             ), in: range, step: step) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(field.title)
+                    Text(LocalizedStringKey(field.title))
                     Text("\((Double(values[field.id] ?? field.initial) ?? 0).formatted(.number.precision(.fractionLength(0...1)))) \(unit)")
                         .font(.title3.weight(.medium)).monospacedDigit()
                 }.padding(.vertical, 4)
             }.accessibilityIdentifier("remote-field-\(field.id)")
         case .toggle:
-            Toggle(field.title, isOn: Binding(
+            Toggle(LocalizedStringKey(field.title), isOn: Binding(
                 get: { values[field.id] == "true" }, set: { values[field.id] = String($0) }
             )).tint(.green).accessibilityIdentifier("remote-field-\(field.id)")
         case .choice(let options):
-            Picker(field.title, selection: binding(field)) {
-                ForEach(options, id: \.0) { value, label in Text(label).tag(value) }
+            Picker(LocalizedStringKey(field.title), selection: binding(field)) {
+                ForEach(options, id: \.0) { value, label in Text(LocalizedStringKey(label)).tag(value) }
             }.accessibilityIdentifier("remote-field-\(field.id)")
         case .text(let maximum):
             VStack(alignment: .leading, spacing: 8) {
-                Text(field.title).font(.caption).foregroundStyle(.secondary)
-                TextField(field.title, text: binding(field), axis: .vertical)
+                Text(LocalizedStringKey(field.title)).font(.caption).foregroundStyle(.secondary)
+                TextField(LocalizedStringKey(field.title), text: binding(field), axis: .vertical)
                     .lineLimit(1...4)
                     .submitLabel(.done)
                     .accessibilityIdentifier("remote-field-\(field.id)")
@@ -131,7 +131,7 @@ struct FleetCommandSheet: View {
                 }
             }.padding(.vertical, 6)
         case .time:
-            DatePicker(field.title, selection: Binding(
+            DatePicker(LocalizedStringKey(field.title), selection: Binding(
                 get: { Calendar.current.startOfDay(for: .now).addingTimeInterval(Double(Int(values[field.id] ?? "0") ?? 0) * 60) },
                 set: {
                     let parts = Calendar.current.dateComponents([.hour, .minute], from: $0)

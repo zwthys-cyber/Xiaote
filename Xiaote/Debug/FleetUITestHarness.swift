@@ -10,22 +10,27 @@ struct FleetUITestHarness: View {
     private let emptyAccount: Bool
     private let largeText: Bool
     private let localHome: Bool
+    private let english: Bool
+    private let pairing: Bool
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FleetUITestURLProtocol.self]
         let session = URLSession(configuration: configuration)
+        let isPairing = ProcessInfo.processInfo.arguments.contains("--pairing")
         _account = State(initialValue: FleetAccountController(
             api: FleetAPIClient(session: session),
-            restoredSession: FleetSession(token: "ui-test-only", expiresAt: .distantFuture), loadStoredSession: false
+            restoredSession: isPairing ? nil : FleetSession(token: "ui-test-only", expiresAt: .distantFuture), usesKeychain: false
         ))
         emptyAccount = ProcessInfo.processInfo.arguments.contains("--empty-account")
         largeText = ProcessInfo.processInfo.arguments.contains("--large-text")
         localHome = ProcessInfo.processInfo.arguments.contains("--local-home")
+        english = ProcessInfo.processInfo.arguments.contains("--english")
+        pairing = isPairing
         let local = VehicleController(managesPassiveKey: false)
         local.vehicleID = "S0123456789abcdefC"
         local.isPaired = true
-        local.phase = .connected
+        local.phase = isPairing ? .idle : .connected
         local.customVehicleName = "小特 Model 3"
         local.passiveKeyOnline = true
         local.batteryLevel = 76
@@ -44,7 +49,9 @@ struct FleetUITestHarness: View {
     var body: some View {
         Group {
             if ready {
-                if localHome {
+                if pairing {
+                    NavigationStack { PairVehicleView(automaticallyScans: false).environment(localVehicle).environment(account) }
+                } else if localHome {
                     NavigationStack { VehicleControlView().environment(localVehicle).environment(account) }
                 } else if emptyAccount { TeslaAccountView().environment(account) }
                 else if let vehicle = account.vehicles.first {
@@ -52,7 +59,7 @@ struct FleetUITestHarness: View {
                 }
             } else { ProgressView() }
         }
-        .environment(\.locale, Locale(identifier: "zh_Hans_CN"))
+        .environment(\.locale, Locale(identifier: english ? "en_US" : "zh_Hans_CN"))
         .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
         .preferredColorScheme(.dark)
         .task { await account.refreshVehicles(); ready = true }

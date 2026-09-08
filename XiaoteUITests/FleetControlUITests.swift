@@ -5,7 +5,8 @@ final class FleetControlUITests: XCTestCase {
 
     private func launch(_ arguments: String...) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--fleet-ui-tests", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"] + arguments
+        let english = arguments.contains("--english")
+        app.launchArguments = ["--fleet-ui-tests", "-AppleLanguages", english ? "(en)" : "(zh-Hans)", "-AppleLocale", english ? "en_US" : "zh_CN"] + arguments
         app.launch()
         return app
     }
@@ -119,6 +120,35 @@ final class FleetControlUITests: XCTestCase {
         capture("local-security-accessibility-text")
         app.buttons["完成"].tap()
         XCTAssertTrue(options.isHittable)
+    }
+
+    func testEnglishRemoteControlsAndForms() {
+        let app = launch("--english")
+        let lock = app.buttons["remote-quick-door_lock"]
+        XCTAssertTrue(lock.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Quick Controls"].exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "76%")).firstMatch.waitForExistence(timeout: 10))
+        capture("remote-home-english")
+        lock.tap()
+        XCTAssertTrue(app.navigationBars["Lock Vehicle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["remote-send-command"].label.contains("Lock Vehicle"))
+        capture("remote-form-english")
+    }
+
+    func testPairingAndAccountEntryAtLargeText() {
+        let app = launch("--pairing", "--large-text")
+        let account = app.buttons["连接 Tesla 账号"]
+        XCTAssertTrue(account.waitForExistence(timeout: 10))
+        XCTAssertTrue(account.isHittable)
+        XCTAssertTrue(app.buttons["正在搜索"].exists)
+        XCTAssertFalse(app.buttons["正在搜索"].isEnabled)
+        capture("pairing-accessibility-text")
+        account.tap()
+        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
+        capture("account-sign-in-accessibility-text")
+        XCTAssertTrue(app.buttons["完成"].isHittable)
+        app.buttons["完成"].tap()
+        XCTAssertTrue(account.isHittable)
     }
 
     func testLocalChargingAndSceneEditorNavigation() {

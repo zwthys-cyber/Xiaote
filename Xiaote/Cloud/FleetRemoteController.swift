@@ -76,6 +76,24 @@ final class FleetRemoteController {
             default: break
             }
         }
+        let explanations = [
+            "not_in_park": "请先将车辆停稳并挂入 P 挡。",
+            "vehicle unavailable": "车辆暂未响应。请先唤醒车辆，再重试。",
+            "vehicle_unavailable": "车辆暂未响应。请先唤醒车辆，再重试。",
+            "disconnected": "车辆未连接充电线，请连接后再开始充电。",
+            "not_charging": "车辆当前没有在充电，无需停止。",
+            "already_started": "车辆已在充电，请刷新查看最新状态。",
+            "is_charging": "车辆已在充电，请刷新查看最新状态。",
+            "complete": "车辆已达到充电目标。",
+            "no_power": "充电设备没有供电，请检查电源和充电连接。",
+            "user_not_present": "此操作需要车内有人，请进入车辆后重试。",
+            "invalid_command": "当前远程服务尚未支持这个功能。",
+            "command not implemented": "当前远程服务尚未支持这个功能。",
+            "key_not_whitelisted": "请先在车辆中添加小特虚拟钥匙。"
+        ]
+        if let explanation = explanations[error.localizedDescription.lowercased()] {
+            return NSLocalizedString(explanation, comment: "")
+        }
         return error.localizedDescription
     }
 }

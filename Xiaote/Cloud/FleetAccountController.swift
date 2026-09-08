@@ -42,10 +42,12 @@ final class FleetAccountController: NSObject {
     private let api: FleetAPIClient
     private var authenticationSession: ASWebAuthenticationSession?
     private let keychain = FleetSessionKeychain()
+    private let usesKeychain: Bool
 
-    init(api: FleetAPIClient = .shared, restoredSession: FleetSession? = nil, loadStoredSession: Bool = true) {
+    init(api: FleetAPIClient = .shared, restoredSession: FleetSession? = nil, usesKeychain: Bool = true) {
         self.api = api
-        session = restoredSession ?? (loadStoredSession ? (try? keychain.load()) : nil)
+        self.usesKeychain = usesKeychain
+        session = restoredSession ?? (usesKeychain ? (try? keychain.load()) : nil)
         super.init()
         if let session {
             connectionState = session.expiresAt <= Date() ? .reauthorizationRequired : .checking
@@ -88,7 +90,7 @@ final class FleetAccountController: NSObject {
                 try? await api.logout(token: newSession.token)
                 return
             }
-            try keychain.save(newSession)
+            if usesKeychain { try keychain.save(newSession) }
             session = newSession
             let remoteVehicles = try await api.vehicles(token: newSession.token)
             guard accountGeneration == generation, !Task.isCancelled else { return }
@@ -176,7 +178,7 @@ final class FleetAccountController: NSObject {
         accountGeneration = UUID()
         authenticationSession?.cancel()
         authenticationSession = nil
-        do { try keychain.delete() }
+        do { if usesKeychain { try keychain.delete() } }
         catch { errorMessage = error.localizedDescription; isWorking = false; return }
         session = nil
         profile = nil
