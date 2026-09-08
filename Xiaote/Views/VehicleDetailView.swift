@@ -48,8 +48,7 @@ struct VehicleDetailView: View {
     private var vehicleHero: some View {
         VStack(spacing: 4) {
             Text(vehicle.displayVehicleName)
-                .font(.system(size: 26, weight: .semibold))
-                .tracking(-0.4)
+                .font(.title2.weight(.semibold))
 
             HStack(spacing: 7) {
                 Circle()

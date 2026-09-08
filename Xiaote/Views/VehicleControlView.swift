@@ -12,6 +12,7 @@ struct VehicleControlView: View {
     @Environment(FleetAccountController.self) private var fleetAccount
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var isPullRefreshing = false
     @State private var confirmForget = false
     @State private var confirmDrive = false
@@ -96,10 +97,10 @@ struct VehicleControlView: View {
                 .edgeSwipeToDismiss()
         }
         .sheet(isPresented: $showingRenameVehicle) {
-            RenameVehicleView().environment(vehicle).presentationDetents([.height(250)])
+            RenameVehicleView().environment(vehicle).presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
         }
         .sheet(isPresented: $showingSecuritySettings) {
-            SecuritySettingsView().environment(vehicle).presentationDetents([.height(310)])
+            SecuritySettingsView().environment(vehicle).presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
         }
         .sheet(isPresented: $showingHomeLayout) {
             HomeLayoutView(order: $homeCardOrder, hidden: $hiddenHomeCards) {
@@ -131,7 +132,7 @@ struct VehicleControlView: View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
                 Text(vehicle.displayVehicleName)
-                    .font(.system(size: 28, weight: .semibold)).tracking(-0.5)
+                    .font(.title2.weight(.semibold)).lineLimit(2)
                 Text("蓝牙车钥匙").font(.caption).foregroundStyle(AppTheme.muted)
             }
             Spacer()
@@ -334,7 +335,7 @@ struct VehicleControlView: View {
                 Image(systemName: icon).font(.subheadline.weight(.semibold))
                 Text(title).font(.subheadline.weight(.medium))
             }
-            .padding(.horizontal, 15).frame(height: 44)
+            .padding(.horizontal, 15).padding(.vertical, 10).frame(minHeight: 44)
             .background(AppTheme.surface, in: Capsule())
             .overlay(Capsule().stroke(AppTheme.hairline, lineWidth: 0.5))
         }

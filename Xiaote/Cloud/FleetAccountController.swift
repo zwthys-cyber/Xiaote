@@ -45,8 +45,7 @@ final class FleetAccountController: NSObject {
 
     init(api: FleetAPIClient = .shared, restoredSession: FleetSession? = nil, loadStoredSession: Bool = true) {
         self.api = api
-        session = restoredSession
-        if session == nil && loadStoredSession { session = try? keychain.load() }
+        session = restoredSession ?? (loadStoredSession ? (try? keychain.load()) : nil)
         super.init()
         if let session {
             connectionState = session.expiresAt <= Date() ? .reauthorizationRequired : .checking
