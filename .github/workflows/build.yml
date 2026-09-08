@@ -90,7 +90,7 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -resolvePackageDependencies -project Xiaote.xcodeproj -scheme Xiaote
 
-      - name: Run app protocol regression tests
+      - name: Run app and UI regression tests
         run: |
           xcodebuild test \
             -project Xiaote.xcodeproj \
@@ -98,6 +98,19 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Verify compact iPhone UI
+        run: |
+          xcodebuild test \
+            -project Xiaote.xcodeproj \
+            -scheme Xiaote \
+            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=latest' \
+            -derivedDataPath DerivedData \
+            -resultBundlePath SmallScreenResults.xcresult \
+            -only-testing:XiaoteUITests \
+            -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Export UI screenshots
@@ -105,6 +118,9 @@ jobs:
         run: |
           if [ -d TestResults.xcresult ]; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path build/ui-screenshots
+          fi
+          if [ -d SmallScreenResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path SmallScreenResults.xcresult --output-path build/ui-screenshots-small
           fi
 
       - name: Upload simulator results
@@ -114,7 +130,9 @@ jobs:
           name: Xiaote-Simulator-Results
           path: |
             TestResults.xcresult
+            SmallScreenResults.xcresult
             build/ui-screenshots
+            build/ui-screenshots-small
           retention-days: 7
 
       - name: Build for physical iPhone without signing

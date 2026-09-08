@@ -47,6 +47,24 @@ final class FleetControlTests: XCTestCase {
         XCTAssertEqual(object, ["driver_temp": 21.5, "passenger_temp": 23])
     }
 
+    func testSeatFormsMatchOfficialProxyIndices() throws {
+        let heater = try XCTUnwrap(FleetControlForm.forCommand("remote_seat_heater_request"))
+        let heaterData = try heater.payload(commandID: "remote_seat_heater_request", values: ["heater": "5", "level": "3"])
+        let heaterObject = try XCTUnwrap(JSONSerialization.jsonObject(with: heaterData) as? [String: Int])
+        XCTAssertEqual(heaterObject["seat_position"], 5)
+        let cooler = try XCTUnwrap(FleetControlForm.forCommand("remote_seat_cooler_request"))
+        let coolerData = try cooler.payload(commandID: "remote_seat_cooler_request", values: ["seat_position": "1", "seat_cooler_level": "0"])
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: coolerData) as? [String: Int], ["seat_position": 1, "seat_cooler_level": 1])
+        let auto = try XCTUnwrap(FleetControlForm.forCommand("remote_auto_seat_climate_request"))
+        XCTAssertEqual(auto.initialValues["auto_seat_position"], "1")
+    }
+
+    func testWindowCommandDoesNotInventVehicleCoordinates() throws {
+        let form = try XCTUnwrap(FleetControlForm.forCommand("window_control"))
+        let data = try form.payload(commandID: "window_control", values: ["command": "close"])
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: data) as? [String: String], ["command": "close"])
+    }
+
     func testUpdateDelayConvertsMinutesToSeconds() throws {
         let form = try XCTUnwrap(FleetControlForm.forCommand("schedule_software_update"))
         let data = try form.payload(commandID: "schedule_software_update", values: ["delay_minutes": "30"])

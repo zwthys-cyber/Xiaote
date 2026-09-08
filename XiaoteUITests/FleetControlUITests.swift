@@ -27,8 +27,7 @@ final class FleetControlUITests: XCTestCase {
         let app = launch()
         let lock = app.buttons["remote-quick-door_lock"]
         XCTAssertTrue(lock.waitForExistence(timeout: 10))
-        let loading = app.otherElements["remote-initial-loading"]
-        if loading.exists { XCTAssertTrue(loading.waitForNonExistence(timeout: 10)) }
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "76%")).firstMatch.waitForExistence(timeout: 10))
         capture("remote-home")
         lock.tap()
         let send = app.buttons["remote-send-command"]
@@ -73,7 +72,8 @@ final class FleetControlUITests: XCTestCase {
     func testLargeTextKeepsControlsReachable() {
         let app = launch("--large-text")
         let lock = app.buttons["remote-quick-door_lock"]
-        XCTAssertTrue(lock.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["小特 Model 3"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "76%")).firstMatch.waitForExistence(timeout: 10))
         capture("remote-home-accessibility-text")
         reveal(lock, in: app)
         XCTAssertGreaterThanOrEqual(lock.frame.height, 44)

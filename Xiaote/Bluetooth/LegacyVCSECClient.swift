@@ -36,14 +36,14 @@ final class LegacyVCSECClient: @unchecked Sendable {
     private let keyID: Data
     private var sharedKey: Data?
     private var counter: UInt32 = 0
-    private var iterator: AsyncStream<Data>.Iterator
+    private let inbox: LegacyMessageInbox
     private var passiveAuthenticationTask: Task<Void, Never>?
 
     init(connection: BLEConnection, privateKey: TeslaPrivateKey) {
         self.connection = connection
         self.privateKey = privateKey
         self.keyID = Data(privateKey.publicKey.sha1Digest().prefix(4))
-        self.iterator = connection.receiveMessages().makeAsyncIterator()
+        self.inbox = LegacyMessageInbox(stream: connection.receiveMessages())
     }
 
     func isKeyWhitelisted() async throws -> Bool {
@@ -89,7 +89,11 @@ final class LegacyVCSECClient: @unchecked Sendable {
         // UnsignedMessage.authenticationResponse(level NONE) is an explicitly
         // present, empty nested message: field 3, length 0.
         try await sendSigned(unsignedMessage: Self.messageField(3, Data()))
-        _ = try? await nextMessage(seconds: 3)
+        if let response = try? await nextMessage(seconds: 3) {
+            // A handle pull can race the bootstrap acknowledgement. Answer
+            // its challenge here rather than consuming and discarding it.
+            try await respondToAuthenticationRequest(in: response)
+        }
     }
 
     func rke(_ rawAction: UInt64) async throws {
@@ -120,14 +124,15 @@ final class LegacyVCSECClient: @unchecked Sendable {
     /// when a handle is pulled. Merely keeping a whitelisted BLE connection
     /// open is insufficient for passive entry: the vehicle requires a fresh
     /// AES-GCM-TOKEN response at its requested authentication level.
-    func startPassiveAuthenticationResponder() {
+    func startPassiveAuthenticationResponder(onFailure: @escaping @Sendable () -> Void = {}) {
         guard passiveAuthenticationTask == nil else { return }
         AppDiagnostics.shared.record("ble.passive.responder.started")
         passiveAuthenticationTask = Task { [weak self] in
             guard let self else { return }
             defer { AppDiagnostics.shared.record("ble.passive.responder.stopped") }
-            while !Task.isCancelled, let message = await self.iterator.next() {
+            while !Task.isCancelled {
                 do {
+                    let message = try await self.inbox.next()
                     let response = Self.vcsecPayload(from: message)
                     let startedAt = Date()
                     if try await self.respondToAuthenticationRequest(in: response) {
@@ -138,6 +143,8 @@ final class LegacyVCSECClient: @unchecked Sendable {
                     return
                 } catch {
                     AppDiagnostics.shared.record("ble.passive.challenge.failed")
+                    if !Task.isCancelled { onFailure() }
+                    return
                 }
             }
         }
@@ -151,6 +158,7 @@ final class LegacyVCSECClient: @unchecked Sendable {
 
     func close() {
         stopPassiveAuthenticationResponder()
+        Task { await inbox.close() }
         connection.close()
     }
 
@@ -248,21 +256,8 @@ final class LegacyVCSECClient: @unchecked Sendable {
     }
 
     private func nextMessage(seconds: Double) async throws -> Data {
-        try await withThrowingTaskGroup(of: Data.self) { group in
-            group.addTask { [iterator] in
-                var iterator = iterator
-                guard let value = await iterator.next() else { throw ClientError.timeout }
-                return value
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(seconds))
-                throw ClientError.timeout
-            }
-            guard let value = try await group.next() else { throw ClientError.timeout }
-            group.cancelAll()
-            self.iterator = self.connection.receiveMessages().makeAsyncIterator()
-            return Self.vcsecPayload(from: value)
-        }
+        do { return Self.vcsecPayload(from: try await inbox.next(timeout: seconds)) }
+        catch LegacyMessageInbox.InboxError.timedOut { throw ClientError.timeout }
     }
 
     /// Modern unauthenticated VCSEC requests use a Universal Message carrier.

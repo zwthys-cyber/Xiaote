@@ -40,28 +40,26 @@ struct FleetControlForm {
             return .init(fields: [], note: id == "remote_start_drive" ? "短时间内允许无钥匙驾驶，请确认车辆周围环境安全。" : "")
         case "actuate_trunk":
             return .init(fields: [choice("which_trunk", "行李厢", [("rear", "后备箱"), ("front", "前备箱")])], note: "请确认行李厢周围没有障碍物。")
-        case "sun_roof_control":
-            return .init(fields: [choice("state", "天窗", [("close", "关闭"), ("vent", "通风")])], note: "仅适用于配备可开启天窗的车型。")
+        case "window_control":
+            return .init(fields: [choice("command", "车窗", [("close", "关闭"), ("vent", "通风")])], note: "请确认车窗周围没有障碍物。旧款车型可能需要使用 Tesla App 操作。")
         case "set_charge_limit": return .init(fields: [number("percent", "充电上限", 50...100, "80", "%")])
         case "set_charging_amps": return .init(fields: [number("charging_amps", "交流充电电流", 1...48, "16", "A")], note: "实际电流受车辆、充电设备和电源限制。")
         case "set_temps":
             return .init(fields: [number("driver_temp", "主驾驶温度", 15...28, "22", "°C", step: 0.5), number("passenger_temp", "副驾驶温度", 15...28, "22", "°C", step: 0.5)])
-        case "set_preconditioning_max", "remote_steering_wheel_heater_request", "remote_auto_steering_wheel_heat_climate_request", "set_sentry_mode":
+        case "set_preconditioning_max", "remote_steering_wheel_heater_request", "set_sentry_mode":
             return .init(fields: [toggle()])
         case "set_bioweapon_mode": return .init(fields: [toggle()], note: "需要车辆配备 HEPA 空气过滤系统。")
         case "set_cabin_overheat_protection": return .init(fields: [toggle(), toggle("fan_only", "仅使用风扇")])
         case "set_climate_keeper_mode":
             return .init(fields: [choice("climate_keeper_mode", "空调模式", [("0", "关闭"), ("1", "保持"), ("2", "爱犬"), ("3", "露营")])])
-        case "set_cop_temp": return .init(fields: [choice("cop_temp", "温度阈值", [("High", "高"), ("Medium", "中"), ("Low", "低")])])
+        case "set_cop_temp": return .init(fields: [choice("cop_temp", "温度阈值", [("3", "高"), ("2", "中"), ("1", "低")])])
         case "remote_seat_heater_request":
             return .init(fields: [choice("heater", "座椅", seats + [("2", "后排左"), ("4", "后排中"), ("5", "后排右")]), number("level", "加热等级", 0...3, "1", "")], note: "请先开启空调；0 表示关闭。")
         case "remote_seat_cooler_request":
             return .init(fields: [choice("seat_position", "座椅", [("1", "主驾驶"), ("2", "副驾驶")]), number("seat_cooler_level", "通风等级", 0...3, "1", "")], note: "需要座椅通风配置，并先开启空调；0 表示关闭。")
         case "remote_auto_seat_climate_request":
-            return .init(fields: [choice("auto_seat_position", "座椅", seats), toggle("auto_climate_on")], note: "请先开启空调。")
-        case "remote_steering_wheel_heat_level_request": return .init(fields: [number("level", "加热等级", 0...3, "1", "")])
+            return .init(fields: [choice("auto_seat_position", "座椅", [("1", "主驾驶"), ("2", "副驾驶")]), toggle("auto_climate_on")], note: "请先开启空调。")
         case "adjust_volume": return .init(fields: [number("volume", "车机音量", 0...10, "3", "", step: 0.5)], note: "需要车内有人并已开启手机访问。")
-        case "remote_boombox": return .init(fields: [choice("sound", "外放音效", [("2000", "寻车提示音"), ("0", "随机趣味音效")])], note: "仅适用于支持外放音效的车型。")
         case "navigation_request": return .init(fields: [.init(id: "destination", title: "目的地", kind: .text(maxLength: 500), initial: "")])
         case "set_vehicle_name": return .init(fields: [.init(id: "vehicle_name", title: "车辆名称", kind: .text(maxLength: 32), initial: "")])
         case "schedule_software_update": return .init(fields: [number("delay_minutes", "多久后开始", 0...1440, "30", "分钟", step: 5)], note: "更新期间车辆无法驾驶，请确认车辆已停妥。")
@@ -78,7 +76,7 @@ struct FleetControlForm {
 
     func payload(commandID: String, values: [String: String], now: Date = .now) throws -> Data {
         var object: [String: Any] = [:]
-        let numericChoices: Set<String> = ["climate_keeper_mode", "heater", "seat_position", "auto_seat_position", "sound"]
+        let numericChoices: Set<String> = ["climate_keeper_mode", "heater", "seat_position", "auto_seat_position", "sound", "cop_temp"]
         for field in fields {
             let value = (values[field.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             switch field.kind {
@@ -108,6 +106,13 @@ struct FleetControlForm {
                       "value": ["android.intent.extra.TEXT": object["destination"] as? String ?? ""]]
         } else if commandID == "schedule_software_update" {
             object = ["offset_sec": Int((object["delay_minutes"] as? Double ?? 0) * 60)]
+        } else if commandID == "remote_seat_heater_request" {
+            // Official command proxy names the position seat_position; the
+            // older REST API uses heater. Include both for compatibility.
+            object["seat_position"] = object["heater"]
+        } else if commandID == "remote_seat_cooler_request" {
+            // Proxy forwards the protobuf level: 1=off, 2=low, 3=medium, 4=high.
+            object["seat_cooler_level"] = Int(object["seat_cooler_level"] as? Double ?? 0) + 1
         } else if commandID == "set_bioweapon_mode" {
             object["manual_override"] = true
         }
