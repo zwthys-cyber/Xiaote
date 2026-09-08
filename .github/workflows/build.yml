@@ -101,8 +101,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$UI_PHONE_ID" \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
-            -parallel-testing-enabled NO \
-            CODE_SIGNING_ALLOWED=NO
+            -parallel-testing-enabled NO
 
       - name: Verify compact iPhone UI
         run: |
@@ -113,8 +112,7 @@ jobs:
             -derivedDataPath DerivedData \
             -resultBundlePath SmallScreenResults.xcresult \
             -only-testing:XiaoteUITests \
-            -parallel-testing-enabled NO \
-            CODE_SIGNING_ALLOWED=NO
+            -parallel-testing-enabled NO
 
       - name: Export UI screenshots
         if: always()
