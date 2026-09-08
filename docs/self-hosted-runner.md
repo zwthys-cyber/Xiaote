@@ -1,6 +1,6 @@
 # Xiaote 构建机
 
-默认工作流现使用 GitHub 托管的 `macos-15` 和 Xcode 26.2，不依赖个人电脑在线。云端执行后端、协议、App 和模拟器 UI 测试，并保留 UI 截图与测试结果；通过后生成 IPA。
+默认工作流现使用 GitHub 托管的 `macos-26`（Apple Silicon）和 Xcode 26.2，不依赖个人电脑在线。云端执行后端、协议、App 和模拟器 UI 测试，并保留 UI 截图与测试结果；通过后生成 IPA。
 
 下面的本地 Mac runner 设置仅用于需要自行托管的环境。启用时需显式修改工作流的 `runs-on`，并按本机 Xcode 安装位置调整 `DEVELOPER_DIR`。
 

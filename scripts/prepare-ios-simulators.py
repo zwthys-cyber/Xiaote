@@ -16,10 +16,9 @@ def runtime():
 
 
 if runtime() is None:
-    # Universal runtimes also work on macOS 15, unlike newer arm-only runtime
-    # variants that may require a newer host OS.
+    # The macos-26 hosted runner uses Apple Silicon; fetch its native runtime.
     subprocess.run(["xcodebuild", "-downloadPlatform", "iOS", "-buildVersion", "26.2",
-                    "-architectureVariant", "universal"], check=True)
+                    "-architectureVariant", "arm64"], check=True)
 
 selected = runtime()
 if selected is None:
