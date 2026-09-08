@@ -1,4 +1,4 @@
-name: Build and verify on Xiaote Mac
+name: Build and verify Xiaote
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
   test-backend:
     name: Fleet API backend tests
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64, xiaote-mac]
+    runs-on: macos-15
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -38,8 +38,10 @@ jobs:
   test-library:
     name: Tesla protocol tests
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64, xiaote-mac]
+    runs-on: macos-15
     timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
     steps:
       - name: Checkout app
         uses: actions/checkout@v6
@@ -58,8 +60,10 @@ jobs:
   build-app:
     name: Build unsigned TrollStore IPA
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64, xiaote-mac]
+    runs-on: macos-15
     timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -74,7 +78,7 @@ jobs:
           unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
           echo "$RUNNER_TEMP/xcodegen/xcodegen/bin" >> "$GITHUB_PATH"
 
-      - name: Verify local Mac toolchain
+      - name: Verify Mac toolchain
         run: |
           xcodebuild -version
           xcodegen --version
