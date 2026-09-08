@@ -64,7 +64,12 @@ struct FleetUITestHarness: View {
         .environment(\.locale, Locale(identifier: english ? "en_US" : "zh_Hans_CN"))
         .environment(\.dynamicTypeSize, largeText ? .accessibility3 : .large)
         .preferredColorScheme(.dark)
-        .task { await account.refreshVehicles(); ready = true }
+        .task {
+            // The account page owns its initial load; preloading it here would
+            // add a second artificial network delay before the gesture test.
+            if !emptyAccount { await account.refreshVehicles() }
+            ready = true
+        }
     }
 }
 
