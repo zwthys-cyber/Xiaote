@@ -93,13 +93,13 @@ final class FleetControlUITests: XCTestCase {
         let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
         start.press(forDuration: 0.05, thenDragTo: end)
-        let refresh = app.progressIndicators.firstMatch
-        XCTAssertTrue(refresh.waitForExistence(timeout: 5))
-        XCTAssertEqual(app.progressIndicators.count, 1)
+        let retry = app.buttons["重新同步"]
+        expectation(for: NSPredicate(format: "enabled == false"), evaluatedWith: retry)
+        waitForExpectations(timeout: 5)
         XCTAssertFalse(app.staticTexts["正在同步车辆"].exists)
         XCTAssertTrue(app.buttons["重新同步"].exists)
         capture("account-single-pull-refresh")
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: refresh)
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: retry)
         waitForExpectations(timeout: 15)
         XCTAssertTrue(app.buttons["重新同步"].isEnabled)
     }
