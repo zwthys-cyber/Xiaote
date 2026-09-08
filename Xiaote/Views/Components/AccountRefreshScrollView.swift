@@ -26,6 +26,5 @@ struct AccountRefreshScrollView<Content: View>: View {
             .scrollIndicators(.hidden)
             .scrollBounceBehavior(.always, axes: .vertical)
             .accessibilityIdentifier("account-refresh-scroll")
-            .accessibilityValue(isRefreshing ? Text("正在刷新") : Text(""))
     }
 }
