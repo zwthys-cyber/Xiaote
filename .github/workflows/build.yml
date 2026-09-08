@@ -97,7 +97,25 @@ jobs:
             -scheme Xiaote \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
             -derivedDataPath DerivedData \
+            -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Export UI screenshots
+        if: always()
+        run: |
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path build/ui-screenshots
+          fi
+
+      - name: Upload simulator results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Xiaote-Simulator-Results
+          path: |
+            TestResults.xcresult
+            build/ui-screenshots
+          retention-days: 7
 
       - name: Build for physical iPhone without signing
         run: |

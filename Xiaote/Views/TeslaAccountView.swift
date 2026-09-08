@@ -143,29 +143,34 @@ struct TeslaAccountView: View {
                 .padding(.leading, 4)
             VStack(spacing: 0) {
                 ForEach(Array(account.vehicles.enumerated()), id: \.element.id) { index, vehicle in
-                    HStack(spacing: 14) {
-                        Image(systemName: "car.side.fill")
-                            .font(.title3)
-                            .frame(width: 34, height: 34)
-                            .background(AppTheme.raised, in: Circle())
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(vehicle.name).font(.headline)
-                            Text("•••• \(vehicle.vin.suffix(4))")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(AppTheme.muted)
+                    NavigationLink {
+                        FleetVehicleControlView(account: account, vehicle: vehicle)
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "car.side.fill")
+                                .font(.title3)
+                                .frame(width: 34, height: 34)
+                                .background(AppTheme.raised, in: Circle())
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(vehicle.name).font(.headline)
+                                Text("•••• \(vehicle.vin.suffix(4))")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(AppTheme.muted)
+                            }
+                            Spacer()
+                            HStack(spacing: 5) {
+                                Circle().fill(vehicle.state == "online" ? Color.green : AppTheme.muted)
+                                    .frame(width: 6, height: 6)
+                                Text(stateText(vehicle.state)).font(.caption)
+                            }
+                            .foregroundStyle(AppTheme.muted)
                         }
-                        Spacer()
-                        HStack(spacing: 5) {
-                            Circle().fill(vehicle.state == "online" ? Color.green : AppTheme.muted)
-                                .frame(width: 6, height: 6)
-                            Text(stateText(vehicle.state)).font(.caption)
-                        }
-                        .foregroundStyle(AppTheme.muted)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 72)
+                        .contentShape(Rectangle())
+                        .accessibilityElement(children: .combine)
                     }
-                    .padding(.horizontal, 16)
-                    .frame(minHeight: 72)
-                    .contentShape(Rectangle())
-                    .accessibilityElement(children: .combine)
+                    .buttonStyle(.plain)
                     if index < account.vehicles.count - 1 {
                         Divider().overlay(AppTheme.hairline).padding(.leading, 64)
                     }
