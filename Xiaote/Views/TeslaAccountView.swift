@@ -7,7 +7,7 @@ struct TeslaAccountView: View {
 
     var body: some View {
         NavigationStack {
-            TrailingDotsRefreshScrollView(isEnabled: account.isSignedIn) {
+            AccountRefreshScrollView(isEnabled: account.isSignedIn) {
                 await account.refreshAccount()
             } content: { isPresentingRefresh in
                 Group {
