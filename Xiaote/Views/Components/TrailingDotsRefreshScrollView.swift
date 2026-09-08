@@ -36,6 +36,7 @@ struct TrailingDotsRefreshScrollView<Content: View>: View {
         }
         .coordinateSpace(name: "trailing-dots-refresh")
         .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.always, axes: .vertical)
         .onPreferenceChange(PullDistancePreferenceKey.self, perform: updatePullDistance)
         .overlay(alignment: .top) {
             if isPresentingRefresh {
