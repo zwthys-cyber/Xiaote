@@ -2,6 +2,7 @@ import AuthenticationServices
 import Observation
 import Security
 import UIKit
+import LocalAuthentication
 
 @MainActor
 @Observable
@@ -21,6 +22,7 @@ final class FleetAccountController: NSObject {
     private(set) var isWorking = false
     var errorMessage: String?
     private(set) var lastAccountUpdate: Date?
+    private(set) var remoteCommandInFlight = false
 
     enum ConnectionState {
         case notConnected, checking, available, unavailable, reauthorizationRequired
@@ -41,9 +43,9 @@ final class FleetAccountController: NSObject {
     private var authenticationSession: ASWebAuthenticationSession?
     private let keychain = FleetSessionKeychain()
 
-    init(api: FleetAPIClient = .shared) {
+    init(api: FleetAPIClient = .shared, restoredSession: FleetSession? = nil, loadStoredSession: Bool = true) {
         self.api = api
-        session = try? keychain.load()
+        session = restoredSession ?? (loadStoredSession ? try? keychain.load() : nil)
         super.init()
         if let session {
             connectionState = session.expiresAt <= Date() ? .reauthorizationRequired : .checking
@@ -201,13 +203,53 @@ final class FleetAccountController: NSObject {
             if session != nil { connectionState = .reauthorizationRequired }
             throw FleetAPIError.server("请重新登录 Tesla 账号。")
         }
+        guard !remoteCommandInFlight else { throw FleetAPIError.server("上一条远程操作还在处理中，请稍候。") }
+        guard vehicles.contains(where: { $0.vin.uppercased() == vehicle.vin.uppercased() }) else {
+            throw FleetAPIError.server("此车辆已不在当前账号中，请刷新车辆列表。")
+        }
+        remoteCommandInFlight = true
+        defer { remoteCommandInFlight = false }
         let generation = accountGeneration
         do {
+            if command.risk == .critical || command.id == "actuate_trunk" {
+                let context = LAContext()
+                guard try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "确认对\(vehicle.name)执行\(command.title)") else {
+                    throw CancellationError()
+                }
+            }
+            guard generation == accountGeneration, !Task.isCancelled else { throw CancellationError() }
             let result = try await api.command(token: session.token, vin: vehicle.vin.uppercased(), name: command.id, payload: payload)
             guard generation == accountGeneration, !Task.isCancelled else { throw CancellationError() }
             guard result.response.result else {
                 throw FleetAPIError.server(result.response.reason ?? "车辆拒绝了此命令。")
             }
+        } catch {
+            if generation == accountGeneration, (error as? FleetAPIError)?.requiresReauthentication == true { handleAccountError(error) }
+            throw error
+        }
+    }
+
+    func readVehicleData(for vin: String) async throws -> FleetVehicleData {
+        try await remoteRequest { try await self.api.vehicleData(token: $0, vin: vin.uppercased()) }
+    }
+
+    func wakeVehicle(_ vehicle: FleetVehicle) async throws -> FleetVehicle {
+        guard !remoteCommandInFlight else { throw FleetAPIError.server("上一条远程操作还在处理中，请稍候。") }
+        remoteCommandInFlight = true
+        defer { remoteCommandInFlight = false }
+        return try await remoteRequest { try await self.api.wake(token: $0, vin: vehicle.vin.uppercased()) }
+    }
+
+    private func remoteRequest<Value>(_ request: (String) async throws -> Value) async throws -> Value {
+        guard let session, !needsReauthentication, session.expiresAt > Date() else {
+            if session != nil { connectionState = .reauthorizationRequired }
+            throw FleetAPIError.server("请重新登录 Tesla 账号。")
+        }
+        let generation = accountGeneration
+        do {
+            let value = try await request(session.token)
+            guard generation == accountGeneration, !Task.isCancelled else { throw CancellationError() }
+            return value
         } catch {
             if generation == accountGeneration, (error as? FleetAPIError)?.requiresReauthentication == true { handleAccountError(error) }
             throw error

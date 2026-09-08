@@ -84,6 +84,16 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  XiaoteUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [XiaoteUITests]
+    dependencies:
+      - target: Xiaote
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Xiaote
 
 schemes:
   Xiaote:
@@ -91,6 +101,8 @@ schemes:
       targets:
         Xiaote: all
         XiaoteTests: [test]
+        XiaoteUITests: [test]
     test:
       targets:
         - XiaoteTests
+        - XiaoteUITests

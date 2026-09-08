@@ -101,7 +101,7 @@ struct FleetHomeView: View {
                 VStack(spacing: 0) {
                     ForEach(Array(account.vehicles.enumerated()), id: \.element.id) { index, fleetVehicle in
                         NavigationLink {
-                            FleetVehicleOverviewView(fleetVehicle: fleetVehicle)
+                            FleetVehicleControlView(account: account, vehicle: fleetVehicle)
                         } label: {
                             HStack(spacing: 13) {
                                 Image(systemName: "car.side.fill").frame(width: 32)
@@ -165,7 +165,7 @@ struct FleetHomeView: View {
     }
 }
 
-private struct FleetVehicleOverviewView: View {
+struct FleetVehicleInfoView: View {
     @Environment(FleetAccountController.self) private var account
     let fleetVehicle: FleetVehicle
 

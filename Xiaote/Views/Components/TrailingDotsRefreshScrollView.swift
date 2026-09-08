@@ -46,7 +46,10 @@ struct TrailingDotsRefreshScrollView<Content: View>: View {
                     .scaleEffect(isRefreshing ? 1 : 0.72 + pullProgress * 0.28)
                     .offset(y: isRefreshing ? 8 : max(8, pullDistance - 44))
                     .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+                    .accessibilityHidden(false)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("正在刷新")
+                    .accessibilityIdentifier("pull-refresh-indicator")
             }
         }
         .accessibilityAction(named: Text("刷新")) {

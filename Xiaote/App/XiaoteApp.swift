@@ -12,6 +12,19 @@ struct XiaoteApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG && targetEnvironment(simulator)
+            if ProcessInfo.processInfo.arguments.contains("--fleet-ui-tests") {
+                FleetUITestHarness()
+            } else {
+                appContent
+            }
+            #else
+            appContent
+            #endif
+        }
+    }
+
+    private var appContent: some View {
             RootView()
                 .environment(vehicle)
                 .environment(fleetAccount)
@@ -30,6 +43,5 @@ struct XiaoteApp: App {
                     }
                     vehicle.publishWatchState()
                 }
-        }
     }
 }

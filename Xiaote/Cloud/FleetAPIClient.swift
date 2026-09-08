@@ -289,6 +289,20 @@ actor FleetAPIClient {
         return response.response
     }
 
+    func vehicleData(token: String, vin: String) async throws -> FleetVehicleData {
+        try validate(vin: vin)
+        let response: FleetEnvelope<FleetVehicleData> = try await request(path: "/v1/vehicles/\(vin)/data", token: token)
+        return response.response
+    }
+
+    func wake(token: String, vin: String) async throws -> FleetVehicle {
+        try validate(vin: vin)
+        let response: FleetEnvelope<FleetVehicle> = try await request(
+            path: "/v1/vehicles/\(vin)/wake", method: "POST", token: token, body: Data("{}".utf8)
+        )
+        return response.response
+    }
+
     func profile(token: String) async throws -> FleetAccountProfile {
         let response: FleetEnvelope<FleetAccountProfile> = try await request(path: "/v1/account/profile", token: token)
         return response.response
