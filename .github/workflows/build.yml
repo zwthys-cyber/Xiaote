@@ -60,7 +60,7 @@ jobs:
   build-app:
     name: Build unsigned TrollStore IPA
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 45
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
@@ -90,12 +90,15 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -resolvePackageDependencies -project Xiaote.xcodeproj -scheme Xiaote
 
+      - name: Prepare reproducible simulator devices
+        run: python3 scripts/prepare-ios-simulators.py
+
       - name: Run app and UI regression tests
         run: |
           xcodebuild test \
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -destination "platform=iOS Simulator,id=$UI_PHONE_ID" \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
             -parallel-testing-enabled NO \
@@ -106,7 +109,7 @@ jobs:
           xcodebuild test \
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
-            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=latest' \
+            -destination "platform=iOS Simulator,id=$UI_SMALL_PHONE_ID" \
             -derivedDataPath DerivedData \
             -resultBundlePath SmallScreenResults.xcresult \
             -only-testing:XiaoteUITests \
