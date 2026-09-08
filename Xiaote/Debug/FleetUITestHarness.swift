@@ -50,9 +50,11 @@ struct FleetUITestHarness: View {
         Group {
             if ready {
                 if pairing {
-                    NavigationStack { PairVehicleView(automaticallyScans: false).environment(localVehicle).environment(account) }
+                    NavigationStack { PairVehicleView(automaticallyScans: false) }
+                        .environment(localVehicle).environment(account)
                 } else if localHome {
-                    NavigationStack { VehicleControlView().environment(localVehicle).environment(account) }
+                    NavigationStack { VehicleControlView() }
+                        .environment(localVehicle).environment(account)
                 } else if emptyAccount { TeslaAccountView().environment(account) }
                 else if let vehicle = account.vehicles.first {
                     NavigationStack { FleetVehicleControlView(account: account, vehicle: vehicle) }
@@ -79,7 +81,9 @@ private final class FleetUITestURLProtocol: URLProtocol {
         var delay = 0.1
         if path == "/v1/vehicles" {
             body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
-            delay = args.contains("--empty-account") ? 2 : 0.1
+            // Leave enough time to inspect the in-flight refresh through XCTest,
+            // including accessibility snapshots on slower hosted simulators.
+            delay = args.contains("--empty-account") ? 8 : 0.1
         } else if path.hasSuffix("/data") {
             if args.contains("--data-failure") {
                 status = 408; body = #"{"error":{"message":"vehicle unavailable"}}"#
