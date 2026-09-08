@@ -235,7 +235,10 @@ struct VehicleControlView: View {
             .accessibilityHint("查看车辆详情")
             VehicleConnectionSummary { showingTeslaAccount = true }
             Divider().overlay(AppTheme.hairline)
-            HStack(spacing: 20) {
+            let metricsLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+                : AnyLayout(HStackLayout(spacing: 20))
+            metricsLayout {
                 if let battery = vehicle.batteryLevel {
                     Label("\(battery)%", systemImage: "battery.75percent")
                         .accessibilityLabel("电池电量百分之 \(battery)")
@@ -244,9 +247,10 @@ struct VehicleControlView: View {
                     Label(String(format: "%.0f km", range), systemImage: "road.lanes")
                         .accessibilityLabel("预计续航 \(Int(range)) 公里")
                 }
-                Spacer(minLength: 8)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
                 compactLockButton(at: now)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .font(.subheadline.weight(.semibold))
             .monospacedDigit()
         }
