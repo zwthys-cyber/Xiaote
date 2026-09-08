@@ -1582,7 +1582,7 @@ final class VehicleController {
                 client.close()
                 throw CancellationError()
             }
-            client.startPassiveAuthenticationResponder()
+            startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
@@ -1596,6 +1596,23 @@ final class VehicleController {
                 AppDiagnostics.shared.record("ble.passive.lifecycle.waiting.g\(generation)")
             }
             throw error
+        }
+    }
+
+    private func startPassiveResponder(_ client: LegacyVCSECClient, on link: BLEConnection) {
+        client.startPassiveAuthenticationResponder { [weak self, weak client, weak link] in
+            Task { @MainActor [weak self, weak client, weak link] in
+                guard let self, let client, let link,
+                      self.passiveKeyClient === client, self.passiveConnection === link,
+                      self.passiveEntryEnabled, !self.intentionalDisconnect else { return }
+                self.passiveKeyOnline = false
+                let generation = self.passiveLifecycle.interrupt()
+                AppDiagnostics.shared.record("ble.passive.responder.recovering")
+                // Keep the restorable central object, but close its ended
+                // stream before establishing a new receive subscription.
+                client.close()
+                await self.restoreDedicatedPhoneKeyConnection(on: link, generation: generation)
+            }
         }
     }
 
@@ -1641,7 +1658,7 @@ final class VehicleController {
                 client.close()
                 return
             }
-            client.startPassiveAuthenticationResponder()
+            startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
@@ -2159,64 +2176,7 @@ final class VehicleController {
         }
     }
 
-    private struct LocalTeslaKeyStore {
-        let service: String
 
-        func loadOrCreate(for identifier: String) throws -> TeslaPrivateKey {
-            if let existing = try loadOptional(for: identifier) { return existing }
-            let key = TeslaPrivateKey.generate()
-            try save(key, for: identifier)
-            return key
-        }
-
-        func load(for identifier: String) throws -> TeslaPrivateKey {
-            guard let key = try loadOptional(for: identifier) else { throw LocalError.keyMissing }
-            return key
-        }
-
-        private func loadOptional(for identifier: String) throws -> TeslaPrivateKey? {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: identifier,
-                kSecReturnData as String: true
-            ]
-            var result: AnyObject?
-            let status = SecItemCopyMatching(query as CFDictionary, &result)
-            if status == errSecItemNotFound { return nil }
-            guard status == errSecSuccess, let data = result as? Data else {
-                throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
-            }
-            return try TeslaPrivateKey(rawRepresentation: data)
-        }
-
-        private func save(_ key: TeslaPrivateKey, for identifier: String) throws {
-            try? delete(for: identifier)
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: identifier,
-                kSecValueData as String: key.rawRepresentation,
-                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            ]
-            let status = SecItemAdd(query as CFDictionary, nil)
-            guard status == errSecSuccess else {
-                throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
-            }
-        }
-
-        func delete(for identifier: String) throws {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: identifier
-            ]
-            let status = SecItemDelete(query as CFDictionary)
-            guard status == errSecSuccess || status == errSecItemNotFound else {
-                throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
-            }
-        }
-    }
 }
 
 private extension String {

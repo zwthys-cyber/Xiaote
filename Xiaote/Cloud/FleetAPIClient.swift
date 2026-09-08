@@ -381,6 +381,16 @@ actor FleetAPIClient {
     private struct ErrorEnvelope: Decodable {
         struct Detail: Decodable { let code: String?; let message: String }
         let error: Detail
+        enum CodingKeys: String, CodingKey { case error, description = "error_description" }
+        init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            if let detail = try? values.decode(Detail.self, forKey: .error) { error = detail }
+            else {
+                let code = try values.decode(String.self, forKey: .error)
+                let description = try? values.decode(String.self, forKey: .description)
+                error = Detail(code: code, message: description?.isEmpty == false ? description! : code)
+            }
+        }
     }
 
     private func validate(vin: String) throws {

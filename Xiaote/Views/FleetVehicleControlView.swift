@@ -252,7 +252,7 @@ private struct FleetRemoteSetupView: View {
             Section("使用提示") {
                 Text("手机与车辆需要联网。休眠车辆可以先唤醒，再下拉读取状态。")
                 Text("远程控制不会替代蓝牙手机钥匙；无感进入仍需添加本地蓝牙钥匙。")
-                Text("只有车辆支持的功能才能执行。未配备的座椅通风、天窗等功能会返回不可用原因。")
+                Text("只有车辆支持的功能才能执行。未配备的座椅通风等功能会返回不可用原因。")
             }
         }
         .scrollContentBackground(.hidden)

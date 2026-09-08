@@ -96,7 +96,7 @@ struct FleetCommandSheet: View {
         .interactiveDismissDisabled(isSending)
     }
 
-    private var isValid: Bool { (try? form.payload(commandID: command.id, values: values)) != nil }
+    private var isValid: Bool { FleetControlForm.forCommand(command.id) != nil && (try? form.payload(commandID: command.id, values: values)) != nil }
 
     @ViewBuilder private func fieldView(_ field: FleetControlField) -> some View {
         switch field.kind {
