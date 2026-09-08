@@ -17,7 +17,7 @@ jobs:
   test-backend:
     name: Fleet API backend tests
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -38,7 +38,7 @@ jobs:
   test-library:
     name: Tesla protocol tests
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
@@ -60,7 +60,7 @@ jobs:
   build-app:
     name: Build unsigned TrollStore IPA
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15-intel
+    runs-on: macos-26
     timeout-minutes: 45
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
