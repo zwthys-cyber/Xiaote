@@ -28,7 +28,7 @@ struct FleetVehicleControlView: View {
                             Button { selectedCommand = command } label: {
                                 VStack(alignment: .leading, spacing: 16) {
                                     Image(systemName: command.symbol).font(.title2)
-                                    Text(command.title).font(.subheadline.weight(.medium))
+                                    Text(LocalizedStringKey(command.title)).font(.subheadline.weight(.medium))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
@@ -52,8 +52,8 @@ struct FleetVehicleControlView: View {
                                 HStack(spacing: 14) {
                                     Image(systemName: category.symbol).font(.title3).frame(width: 28)
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(category.rawValue).font(.body.weight(.medium))
-                                        Text(category.subtitle).font(.caption).foregroundStyle(AppTheme.muted)
+                                        Text(LocalizedStringKey(category.rawValue)).font(.body.weight(.medium))
+                                        Text(LocalizedStringKey(category.subtitle)).font(.caption).foregroundStyle(AppTheme.muted)
                                     }
                                     Spacer(minLength: 8)
                                     Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
@@ -120,7 +120,7 @@ struct FleetVehicleControlView: View {
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
                     metric("电量", value: control.data?.chargeState?.batteryLevel.map { "\($0)%" } ?? "—", icon: "battery.75percent")
                     metric("续航", value: control.data?.chargeState?.batteryRange.map { "\(Int(($0 * 1.609344).rounded())) km" } ?? "—", icon: "road.lanes")
-                    metric("门锁", value: control.data?.vehicleState?.locked.map { $0 ? "已锁定" : "未锁定" } ?? "—", icon: "lock")
+                    metric("门锁", value: control.data?.vehicleState?.locked.map { NSLocalizedString($0 ? "已锁定" : "未锁定", comment: "") } ?? "—", icon: "lock")
                     metric("车内温度", value: control.data?.climateState?.insideTemp.map { String(format: "%.1f °C", $0) } ?? "—", icon: "thermometer.medium")
                 }
                 if control.isRefreshing && !isPullRefreshing {
@@ -148,7 +148,7 @@ struct FleetVehicleControlView: View {
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Label(control.currentVehicle.state == "online" ? "车辆在线" : "车辆可能处于休眠或离线状态", systemImage: "antenna.radiowaves.left.and.right")
+                    Label(LocalizedStringKey(control.currentVehicle.state == "online" ? "车辆在线" : "车辆可能处于休眠或离线状态"), systemImage: "antenna.radiowaves.left.and.right")
                         .font(.subheadline).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 8)
                     Button { Task { await control.wake() } } label: {
@@ -169,20 +169,20 @@ struct FleetVehicleControlView: View {
     }
 
     private func freshness(at now: Date) -> String {
-        guard let date = control.updatedAt else { return "尚未读取到状态 · 下拉刷新" }
+        guard let date = control.updatedAt else { return NSLocalizedString("尚未读取到状态 · 下拉刷新", comment: "") }
         let prefix = now.timeIntervalSince(date) > 120 ? "状态可能已过期" : "最近读取"
-        return "\(prefix) · \(date.formatted(date: .omitted, time: .shortened))"
+        return "\(NSLocalizedString(prefix, comment: "")) · \(date.formatted(date: .omitted, time: .shortened))"
     }
     private func metric(_ title: String, value: String, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: icon).font(.caption).foregroundStyle(AppTheme.muted)
+            Label(LocalizedStringKey(title), systemImage: icon).font(.caption).foregroundStyle(AppTheme.muted)
             Text(value).font(.title3.weight(.medium)).monospacedDigit().accessibilityIdentifier("remote-metric-\(title)")
         }.accessibilityElement(children: .combine)
     }
     private func sectionTitle(_ title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.headline)
-            Text(subtitle).font(.caption).foregroundStyle(AppTheme.muted)
+            Text(LocalizedStringKey(title)).font(.headline)
+            Text(LocalizedStringKey(subtitle)).font(.caption).foregroundStyle(AppTheme.muted)
         }
     }
 }
@@ -200,8 +200,8 @@ struct FleetCommandCategoryView: View {
                         HStack(spacing: 14) {
                             Image(systemName: command.symbol).frame(width: 28).font(.title3)
                             VStack(alignment: .leading, spacing: 5) {
-                                Text(command.title).font(.body.weight(.medium))
-                                Text(command.summary).font(.caption).foregroundStyle(AppTheme.muted)
+                                Text(LocalizedStringKey(command.title)).font(.body.weight(.medium))
+                                Text(LocalizedStringKey(command.summary)).font(.caption).foregroundStyle(AppTheme.muted)
                             }
                             Spacer(minLength: 8)
                             Image(systemName: "chevron.right").font(.caption).foregroundStyle(AppTheme.muted)
@@ -216,7 +216,7 @@ struct FleetCommandCategoryView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .appDestinationPage(title: category.rawValue)
+        .appDestinationPage(title: NSLocalizedString(category.rawValue, comment: ""))
         .tint(.white)
         .sheet(item: $selectedCommand) { FleetCommandSheet(control: control, command: $0) }
     }
