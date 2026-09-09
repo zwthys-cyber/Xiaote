@@ -11,10 +11,15 @@ struct AccountRefreshScrollView<Content: View>: View {
         if isEnabled {
             scrollContent
                 .refreshable {
-                    guard !isRefreshing else { return }
-                    isRefreshing = true
-                    defer { isRefreshing = false }
-                    await action()
+                    // Updating the loading content can invalidate SwiftUI's
+                    // refresh task. Keep the request alive through that update;
+                    // account generation checks still discard signed-out results.
+                    await Task { @MainActor in
+                        guard !isRefreshing else { return }
+                        isRefreshing = true
+                        defer { isRefreshing = false }
+                        await action()
+                    }.value
                 }
         } else {
             scrollContent
