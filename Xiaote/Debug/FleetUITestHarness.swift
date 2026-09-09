@@ -75,6 +75,8 @@ struct FleetUITestHarness: View {
 
 private final class FleetUITestURLProtocol: URLProtocol {
     private var work: DispatchWorkItem?
+    private static let requestLock = NSLock()
+    private static var vehicleRequestCount = 0
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -86,9 +88,14 @@ private final class FleetUITestURLProtocol: URLProtocol {
         var delay = 0.1
         if path == "/v1/vehicles" {
             body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
-            // Leave enough time to inspect the in-flight refresh through XCTest,
-            // including accessibility snapshots on slower hosted simulators.
-            delay = args.contains("--empty-account") ? 8 : 0.1
+            Self.requestLock.lock()
+            Self.vehicleRequestCount += 1
+            let requestNumber = Self.vehicleRequestCount
+            Self.requestLock.unlock()
+            // Initial load is fast; the subsequent pull models a slow network
+            // so XCTest can inspect it after waiting for scroll animations.
+            delay = args.contains("--empty-account") && requestNumber > 1 ? 20 : 0.1
+            NSLog("UI fixture vehicle request %d, delay %.1f", requestNumber, delay)
         } else if path.hasSuffix("/data") {
             if args.contains("--data-failure") {
                 status = 408; body = #"{"error":{"message":"vehicle unavailable"}}"#

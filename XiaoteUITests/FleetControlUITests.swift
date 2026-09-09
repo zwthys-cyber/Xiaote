@@ -100,7 +100,7 @@ final class FleetControlUITests: XCTestCase {
         XCTAssertTrue(app.buttons["重新同步"].exists)
         capture("account-single-pull-refresh")
         expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: retry)
-        waitForExpectations(timeout: 15)
+        waitForExpectations(timeout: 30)
         XCTAssertTrue(app.buttons["重新同步"].isEnabled)
     }
 
