@@ -78,10 +78,16 @@ jobs:
         env:
           XCODEGEN_VERSION: "2.46.0"
         run: |
+          if command -v xcodegen >/dev/null && \
+             xcodegen --version | grep -q "$XCODEGEN_VERSION"; then
+            echo "Using installed XcodeGen $XCODEGEN_VERSION"
+            exit 0
+          fi
           tool_dir="$RUNNER_TOOL_CACHE/xiaote/xcodegen/$XCODEGEN_VERSION"
           if [ ! -x "$tool_dir/xcodegen/bin/xcodegen" ]; then
             mkdir -p "$tool_dir"
             curl --fail --location --silent --show-error \
+              --retry 5 --retry-all-errors --http1.1 \
               "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip" \
               --output "$RUNNER_TEMP/xcodegen.zip"
             unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$tool_dir"
