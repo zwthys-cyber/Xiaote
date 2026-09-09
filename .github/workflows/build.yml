@@ -111,10 +111,16 @@ jobs:
 
       - name: Resolve Swift packages
         run: |
-          xcodebuild -resolvePackageDependencies \
-            -project Xiaote.xcodeproj \
-            -scheme Xiaote \
-            -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages"
+          for attempt in 1 2 3 4 5; do
+            if xcodebuild -resolvePackageDependencies \
+              -project Xiaote.xcodeproj \
+              -scheme Xiaote \
+              -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages"; then
+              exit 0
+            fi
+            echo "Swift package resolution attempt $attempt failed; retrying"
+          done
+          exit 1
 
       - name: Prepare reproducible simulator devices
         run: python3 scripts/prepare-ios-simulators.py
