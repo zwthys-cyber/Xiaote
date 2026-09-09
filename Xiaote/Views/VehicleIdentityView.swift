@@ -39,7 +39,8 @@ struct VehicleIdentityView: View {
                         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(validationMessage == nil ? AppTheme.hairline : Color.red.opacity(0.7), lineWidth: 0.7))
                         .focused($isFocused)
                         .onChange(of: vin) { _, value in
-                            vin = String(value.uppercased().filter { $0.isLetter || $0.isNumber }.prefix(17))
+                            vin = VehicleVIN.scanned(from: value)
+                                ?? String(VehicleVIN.normalized(value).prefix(17))
                             validationMessage = nil
                         }
                     Text(validationMessage ?? "在车机中打开「控制 > 软件」即可查看")
@@ -93,17 +94,12 @@ struct VehicleIdentityView: View {
             }
             .onAppear { isFocused = true }
             .fullScreenCover(isPresented: $showingScanner) {
-                NavigationStack {
-                    VINScannerView { value in
-                        vin = value
-                        showingScanner = false
-                    }
-                    .ignoresSafeArea()
-                    .navigationTitle("扫描 VIN")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("取消") { showingScanner = false } } }
+                VINScannerScreen { value in
+                    vin = value
+                    showingScanner = false
+                } onCancel: {
+                    showingScanner = false
                 }
-                .edgeSwipeToDismiss()
             }
         }
         .preferredColorScheme(.dark)

@@ -24,6 +24,15 @@ final class FleetControlUITests: XCTestCase {
         XCTAssertTrue(element.isHittable)
     }
 
+    func testVINScannerHasFocusedProfessionalLayout() {
+        let app = launch("--vin-scanner")
+        XCTAssertTrue(app.staticTexts["扫描 VIN"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["对准 17 位 VIN"].exists)
+        XCTAssertTrue(app.staticTexts["自动过滤汉字与说明文字"].exists)
+        XCTAssertTrue(app.buttons["取消扫描"].isHittable)
+        capture("vin-scanner")
+    }
+
     func testHomeAndCommandReceiptWithoutOptimisticStateChange() {
         let app = launch()
         let lock = app.buttons["remote-quick-door_lock"]
