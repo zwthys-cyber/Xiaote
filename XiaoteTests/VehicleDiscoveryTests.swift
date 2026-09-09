@@ -3,6 +3,19 @@ import XCTest
 
 @MainActor
 final class VehicleDiscoveryTests: XCTestCase {
+    func testVINNormalizationRejectsUnicodeLettersAndForbiddenCharacters() {
+        XCTAssertEqual(VehicleVIN.normalized("车辆识别码：LRW3E7FA9MC123456"), "LRW3E7FA9MC123456")
+        XCTAssertEqual(VehicleVIN.normalized("lrw3e7fa9mc 123456"), "LRW3E7FA9MC123456")
+        XCTAssertNil(VehicleVIN.exact("中文LRW3E7FA9MC12345I"))
+    }
+
+    func testVINScannerExtractsTeslaVINFromSurroundingOCRText() {
+        XCTAssertEqual(VehicleVIN.scanned(from: "车辆识别码 VIN: LRW3E7FA9MC123456 长按复制"), "LRW3E7FA9MC123456")
+        XCTAssertEqual(VehicleVIN.scanned(from: "VIN 5YJ3E1EA7KF000000"), "5YJ3E1EA7KF000000")
+        XCTAssertNil(VehicleVIN.scanned(from: "车辆识别码：这里没有 VIN"))
+        XCTAssertNil(VehicleVIN.scanned(from: "ABCDEFGHJKLMNPRST"))
+    }
+
     func testTeslaAdvertisementNameValidation() {
         XCTAssertTrue(NearbyTeslaScanner.isTeslaAdvertisementName("S1a87a5a75f3df858C"))
         XCTAssertFalse(NearbyTeslaScanner.isTeslaAdvertisementName("Tesla Model 3"))

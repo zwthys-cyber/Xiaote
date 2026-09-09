@@ -42,8 +42,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: NO
-        CURRENT_PROJECT_VERSION: 320
-        MARKETING_VERSION: 3.2.0
+        CURRENT_PROJECT_VERSION: 321
+        MARKETING_VERSION: 3.2.1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
       - package: TeslaBLEKeyKit
@@ -73,8 +73,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "4"
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: NO
-        CURRENT_PROJECT_VERSION: 320
-        MARKETING_VERSION: 3.2.0
+        CURRENT_PROJECT_VERSION: 321
+        MARKETING_VERSION: 3.2.1
   XiaoteTests:
     type: bundle.unit-test
     platform: iOS

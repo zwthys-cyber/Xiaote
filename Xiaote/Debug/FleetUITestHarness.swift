@@ -12,6 +12,7 @@ struct FleetUITestHarness: View {
     private let localHome: Bool
     private let english: Bool
     private let pairing: Bool
+    private let vinScanner: Bool
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -27,6 +28,7 @@ struct FleetUITestHarness: View {
         localHome = ProcessInfo.processInfo.arguments.contains("--local-home")
         english = ProcessInfo.processInfo.arguments.contains("--english")
         pairing = isPairing
+        vinScanner = ProcessInfo.processInfo.arguments.contains("--vin-scanner")
         let local = VehicleController(managesPassiveKey: false)
         local.vehicleID = "S0123456789abcdefC"
         local.isPaired = true
@@ -49,7 +51,9 @@ struct FleetUITestHarness: View {
     var body: some View {
         Group {
             if ready {
-                if pairing {
+                if vinScanner {
+                    VINScannerScreen(onRecognized: { _ in }, onCancel: {}, previewMode: true)
+                } else if pairing {
                     NavigationStack { PairVehicleView(automaticallyScans: false) }
                         .environment(localVehicle).environment(account)
                 } else if localHome {

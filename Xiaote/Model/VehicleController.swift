@@ -778,8 +778,7 @@ final class VehicleController {
     }
 
     func saveVehicleVIN(_ input: String) async -> String? {
-        let vin = input.uppercased().filter { $0.isLetter || $0.isNumber }
-        guard vin.count == 17, !vin.contains(where: { "IOQ".contains($0) }) else {
+        guard let vin = VehicleVIN.exact(input) else {
             return "请输入车机「控制 > 软件」中显示的 17 位 VIN。"
         }
         guard Self.beaconName(forVIN: vin).caseInsensitiveCompare(vehicleID) == .orderedSame else {
