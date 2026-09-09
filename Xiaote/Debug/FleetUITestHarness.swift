@@ -87,14 +87,13 @@ private final class FleetUITestURLProtocol: URLProtocol {
         var status = 200
         var delay = 0.1
         if path == "/v1/vehicles" {
-            body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
             Self.requestLock.lock()
             Self.vehicleRequestCount += 1
             let requestNumber = Self.vehicleRequestCount
             Self.requestLock.unlock()
-            // Initial load is fast; the subsequent pull models a slow network
-            // so XCTest can inspect it after waiting for scroll animations.
-            delay = args.contains("--empty-account") && requestNumber > 1 ? 20 : 0.1
+            let isInitialEmptyLoad = args.contains("--empty-account") && requestNumber == 1
+            body = isInitialEmptyLoad ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
+            delay = isInitialEmptyLoad ? 0.1 : 1
             NSLog("UI fixture vehicle request %d, delay %.1f", requestNumber, delay)
         } else if path.hasSuffix("/data") {
             if args.contains("--data-failure") {

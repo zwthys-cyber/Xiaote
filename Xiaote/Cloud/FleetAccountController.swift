@@ -119,12 +119,15 @@ final class FleetAccountController: NSObject {
             return
         }
         let generation = accountGeneration
+        let previousState = connectionState
         isWorking = true
         connectionState = .checking
         defer {
             if generation == accountGeneration {
                 isWorking = false
-                if connectionState == .checking { connectionState = .unavailable }
+                // View disappearance and user cancellation are not connection
+                // failures. A real request error sets its own recovery state.
+                if connectionState == .checking { connectionState = previousState }
             }
         }
         errorMessage = nil

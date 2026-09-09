@@ -178,6 +178,18 @@ jobs:
             build/ui-screenshots-small
           retention-days: 7
 
+      - name: Upload UI screenshots
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: Xiaote-UI-Screenshots
+          path: |
+            build/ui-screenshots
+            build/ui-screenshots-small
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Retry simulator results upload
         if: always() && steps.simulator_upload.outcome == 'failure'
         uses: actions/upload-artifact@v6
