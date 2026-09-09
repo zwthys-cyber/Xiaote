@@ -27,9 +27,6 @@ def has_watch_runtime():
 if runtime() is None:
     subprocess.run(["xcodebuild", "-downloadPlatform", "iOS"], check=True)
 
-if not has_watch_runtime():
-    subprocess.run(["xcodebuild", "-downloadPlatform", "watchOS"], check=True)
-
 selected = runtime()
 if selected is None:
     raise SystemExit("No available iOS simulator runtime was found.")
@@ -41,6 +38,10 @@ devices = [
 existing_devices = json.loads(output("xcrun", "simctl", "list", "devices", "--json"))["devices"]
 runtime_devices = existing_devices.get(selected["identifier"], [])
 with open(os.environ["GITHUB_ENV"], "a") as environment:
+    can_run_ui_tests = has_watch_runtime()
+    print(f"CAN_RUN_UI_TESTS={'true' if can_run_ui_tests else 'false'}", file=environment)
+    if not can_run_ui_tests:
+        print("watchOS simulator runtime is not installed; UI tests will be skipped.")
     for key, name, device_type in devices:
         existing = next((item for item in runtime_devices
                          if item.get("isAvailable") and item["name"] == name), None)
