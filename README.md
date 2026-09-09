@@ -84,11 +84,11 @@
 
 将此目录作为仓库推送到 GitHub。Actions 中的 **Build iOS 17 IPA** 会：
 
-1. 在 macOS 26/Xcode 26.2 上检出 App 实际固定的 TeslaBLEKeyKit 分支并运行密码学与协议测试；
+1. 在 GitHub 托管 Mac 上检出 App 实际固定的 TeslaBLEKeyKit 分支并运行密码学与协议测试；
 2. 用 XcodeGen 生成工程，并在 iOS 模拟器运行 App 协议回归测试；
-3. 为真实 iPhone 编译 Release；
+3. 在带 `xiaote-mac` 标签的自托管 Apple Silicon Mac 上为真实 iPhone 编译 Release，并复用依赖与增量编译缓存；
 4. 编译并嵌入 watchOS 10 配套应用；
-5. 生成 `Xiaote-unsigned.ipa` artifact。
+5. 生成 `Xiaote-unsigned.ipa` artifact；推送 `v*` tag 时同时发布到 GitHub Release。
 
 工作流使用 Node 24 版本的 `actions/checkout@v6` 与 `actions/upload-artifact@v6`，避免 GitHub 托管 Runner 的 Node 20 弃用警告。
 
