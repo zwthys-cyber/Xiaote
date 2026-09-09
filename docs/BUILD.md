@@ -4,8 +4,8 @@
 
 - iOS deployment target：17.0
 - watchOS deployment target：10.0
-- GitHub Runner：默认 `macos-26`；手动勾选 `build_on_mac` 可使用带有 `xiaote-mac` 标签的自托管 Apple Silicon Mac
-- Xcode：26.2
+- GitHub Runner：带有 `xiaote-mac` 标签的自托管 Apple Silicon Mac
+- Xcode：本机 `/Applications/Xcode.app`（当前验证版本见构建日志）
 - Swift Package Manager：解析 `project.yml` 中固定 revision
 - 工程生成器：XcodeGen
 
@@ -21,7 +21,7 @@ open Xiaote.xcodeproj
 
 ## GitHub Actions
 
-`.github/workflows/build.yml` 在 `main` push、Pull Request 和手动触发时运行三个 Job：
+`.github/workflows/build.yml` 在 `main` push、`v*` tag、Pull Request 和手动触发时运行。后端与协议测试使用 GitHub 托管 Mac；App 编译仅在非 PR 事件使用带 `xiaote-mac` 标签的自托管 Apple Silicon Mac：
 
 1. `Fleet API backend tests` 执行 `go test ./...` 与 `go vet ./...`。
 2. `Tesla protocol tests` 检出 `zwthys-cyber/TeslaBLEKeyKit` 的固定提交并执行 `swift test`。
@@ -29,7 +29,7 @@ open Xiaote.xcodeproj
 
 主 App 嵌入 watchOS 配套应用。无 Apple Watch 时不影响 iPhone 功能；TrollStore 对嵌入式 Watch App 的安装取决于系统和配对状态，CI 只验证编译与嵌入结构。
 
-Artifact 名称为 `Xiaote-iOS17-TrollStore`，文件名为 `Xiaote-unsigned.ipa`。工作流使用 `actions/checkout@v6` 和 `actions/upload-artifact@v6`，避免旧 Node 20 Action 运行时警告。
+Artifact 名称为 `Xiaote-iOS17-TrollStore`，包含 `Xiaote-unsigned.ipa` 和 SHA-256 文件并保留 30 天。推送 `v*` tag 时，这两个文件也会上传到同名 GitHub Release。自托管 Mac 在 Runner tool cache 中持续保留固定 XcodeGen、Swift Package 源码和 DerivedData，并通过禁用 `clean` 复用增量编译缓存。
 
 ## 发布检查
 
