@@ -10,9 +10,9 @@ struct TeslaAccountView: View {
         NavigationStack {
             AccountRefreshScrollView(isEnabled: account.isSignedIn) {
                 await account.refreshAccount()
-            } content: { isPresentingRefresh in
+            } content: {
                 Group {
-                    if account.isSignedIn { signedInContent(isPresentingRefresh: isPresentingRefresh) }
+                    if account.isSignedIn { signedInContent }
                     else { signedOutContent }
                 }
                 .frame(maxWidth: 520)
@@ -58,7 +58,7 @@ struct TeslaAccountView: View {
         }
     }
 
-    private func signedInContent(isPresentingRefresh: Bool) -> some View {
+    private var signedInContent: some View {
         VStack(spacing: 0) {
             if account.needsReauthentication || account.connectionState == .unavailable {
                 VStack(spacing: 10) {
@@ -73,7 +73,7 @@ struct TeslaAccountView: View {
                 }
                 .padding(.vertical, 20)
             }
-            if (!initialLoadComplete || account.isWorking) && account.vehicles.isEmpty && !isPresentingRefresh {
+            if !initialLoadComplete && account.vehicles.isEmpty {
                 loadingState.padding(.top, 48)
             } else if account.vehicles.isEmpty {
                 emptyVehicleState.padding(.top, 38)
