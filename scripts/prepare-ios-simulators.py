@@ -17,8 +17,18 @@ def runtime():
                default=None)
 
 
+def has_watch_runtime():
+    runtimes = json.loads(output("xcrun", "simctl", "list", "runtimes", "--json"))["runtimes"]
+    return any(item.get("isAvailable") and
+               item["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.watchOS-")
+               for item in runtimes)
+
+
 if runtime() is None:
     subprocess.run(["xcodebuild", "-downloadPlatform", "iOS"], check=True)
+
+if not has_watch_runtime():
+    subprocess.run(["xcodebuild", "-downloadPlatform", "watchOS"], check=True)
 
 selected = runtime()
 if selected is None:
