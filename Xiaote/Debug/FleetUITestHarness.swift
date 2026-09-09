@@ -75,8 +75,6 @@ struct FleetUITestHarness: View {
 
 private final class FleetUITestURLProtocol: URLProtocol {
     private var work: DispatchWorkItem?
-    private static let requestLock = NSLock()
-    private static var vehicleRequestCount = 0
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -87,14 +85,8 @@ private final class FleetUITestURLProtocol: URLProtocol {
         var status = 200
         var delay = 0.1
         if path == "/v1/vehicles" {
-            Self.requestLock.lock()
-            Self.vehicleRequestCount += 1
-            let requestNumber = Self.vehicleRequestCount
-            Self.requestLock.unlock()
-            let isInitialEmptyLoad = args.contains("--empty-account") && requestNumber == 1
-            body = isInitialEmptyLoad ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
-            delay = isInitialEmptyLoad ? 0.1 : 1
-            NSLog("UI fixture vehicle request %d, delay %.1f", requestNumber, delay)
+            body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
+            delay = args.contains("--empty-account") ? 1 : 0.1
         } else if path.hasSuffix("/data") {
             if args.contains("--data-failure") {
                 status = 408; body = #"{"error":{"message":"vehicle unavailable"}}"#
