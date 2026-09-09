@@ -165,10 +165,24 @@ jobs:
           fi
 
       - name: Upload simulator results
+        id: simulator_upload
+        continue-on-error: true
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: Xiaote-Simulator-Results
+          path: |
+            TestResults.xcresult
+            SmallScreenResults.xcresult
+            build/ui-screenshots
+            build/ui-screenshots-small
+          retention-days: 7
+
+      - name: Retry simulator results upload
+        if: always() && steps.simulator_upload.outcome == 'failure'
+        uses: actions/upload-artifact@v6
+        with:
+          name: Xiaote-Simulator-Results-Retry
           path: |
             TestResults.xcresult
             SmallScreenResults.xcresult

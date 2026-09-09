@@ -92,7 +92,11 @@ final class FleetControlUITests: XCTestCase {
         let scroll = app.scrollViews["account-refresh-scroll"]
         let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8))
+        print("ACCOUNT BEFORE PULL: \(app.debugDescription)")
+        capture("account-before-pull")
         start.press(forDuration: 0.05, thenDragTo: end)
+        print("ACCOUNT AFTER PULL: \(app.debugDescription)")
+        capture("account-after-pull")
         let retry = app.buttons["重新同步"]
         expectation(for: NSPredicate(format: "enabled == false"), evaluatedWith: retry)
         waitForExpectations(timeout: 5)
