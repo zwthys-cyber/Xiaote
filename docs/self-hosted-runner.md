@@ -85,7 +85,9 @@ Runner Group。真机 Tesla/BLE/NFC 操作仍必须人工验证，CI 无法替�
 ## 6. 常见故障
 
 - 一直 `Waiting for a runner`：检查服务、四个标签及 Mac 是否睡眠。
-- 找不到 iOS/watchOS SDK：重新执行对应 `xcodebuild -downloadPlatform`。
+- 找不到 iOS SDK：执行 `xcodebuild -downloadPlatform iOS`。未安装 watchOS
+  Simulator Runtime 时会跳过模拟器 UI 测试，但不影响 iPhone IPA 编译；需要这些
+  测试时可在 Xcode 设置的 Platforms 页面安装对应 watchOS Runtime。
 - 模拟器无法启动：保持编译用户图形登录，执行 `xcrun simctl list` 检查运行时。
 - 磁盘不足：先删除旧 Actions 工作目录和 DerivedData；保留 `SourcePackages`。
 - Release 上传 403：仓库 **Settings → Actions → General → Workflow permissions**

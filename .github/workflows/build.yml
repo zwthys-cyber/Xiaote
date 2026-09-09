@@ -126,6 +126,7 @@ jobs:
         run: python3 scripts/prepare-ios-simulators.py
 
       - name: Run app and UI regression tests
+        if: env.CAN_RUN_UI_TESTS == 'true'
         run: |
           xcodebuild test \
             -project Xiaote.xcodeproj \
@@ -138,6 +139,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Verify compact iPhone UI
+        if: env.CAN_RUN_UI_TESTS == 'true'
         run: |
           xcodebuild test \
             -project Xiaote.xcodeproj \
