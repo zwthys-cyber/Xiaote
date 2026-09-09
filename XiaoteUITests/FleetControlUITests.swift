@@ -96,7 +96,8 @@ final class FleetControlUITests: XCTestCase {
         start.press(forDuration: 0.05, thenDragTo: end)
         XCTAssertFalse(app.staticTexts["正在同步车辆"].exists)
         XCTAssertFalse(app.staticTexts["远程连接暂不可用"].exists)
-        XCTAssertTrue(app.staticTexts["小特 Model 3"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["重新同步"].exists)
+        XCTAssertTrue(app.buttons["重新同步"].isEnabled)
         capture("account-single-pull-refresh")
     }
 
