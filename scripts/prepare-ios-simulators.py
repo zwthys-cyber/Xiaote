@@ -11,25 +11,42 @@ def output(*arguments):
 
 def runtime():
     runtimes = json.loads(output("xcrun", "simctl", "list", "runtimes", "--json"))["runtimes"]
-    return next((item for item in runtimes if item.get("isAvailable")
-                 and item["identifier"].endswith("iOS-26-2")), None)
+    available = [item for item in runtimes if item.get("isAvailable")
+                 and item["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-")]
+    return max(available, key=lambda item: tuple(map(int, item["version"].split("."))),
+               default=None)
+
+
+def has_watch_runtime():
+    runtimes = json.loads(output("xcrun", "simctl", "list", "runtimes", "--json"))["runtimes"]
+    return any(item.get("isAvailable") and
+               item["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.watchOS-")
+               for item in runtimes)
 
 
 if runtime() is None:
-    # The macos-26 hosted runner uses Apple Silicon; fetch its native runtime.
-    subprocess.run(["xcodebuild", "-downloadPlatform", "iOS", "-buildVersion", "26.2",
-                    "-architectureVariant", "arm64"], check=True)
+    subprocess.run(["xcodebuild", "-downloadPlatform", "iOS"], check=True)
 
 selected = runtime()
 if selected is None:
-    raise SystemExit("The required iOS 26.2 simulator runtime is not available.")
+    raise SystemExit("No available iOS simulator runtime was found.")
 
 devices = [
     ("UI_PHONE_ID", "Xiaote UI", "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"),
     ("UI_SMALL_PHONE_ID", "Xiaote Compact UI", "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation"),
 ]
+existing_devices = json.loads(output("xcrun", "simctl", "list", "devices", "--json"))["devices"]
+runtime_devices = existing_devices.get(selected["identifier"], [])
 with open(os.environ["GITHUB_ENV"], "a") as environment:
+    can_run_ui_tests = has_watch_runtime()
+    print(f"CAN_RUN_UI_TESTS={'true' if can_run_ui_tests else 'false'}", file=environment)
+    if not can_run_ui_tests:
+        print("watchOS simulator runtime is not installed; UI tests will be skipped.")
     for key, name, device_type in devices:
-        identifier = output("xcrun", "simctl", "create", name, device_type, selected["identifier"])
+        existing = next((item for item in runtime_devices
+                         if item.get("isAvailable") and item["name"] == name), None)
+        identifier = (existing["udid"] if existing else
+                      output("xcrun", "simctl", "create", name, device_type,
+                             selected["identifier"]))
         print(f"{key}={identifier}", file=environment)
         print(f"Prepared {name}: {identifier} ({selected['name']})")
