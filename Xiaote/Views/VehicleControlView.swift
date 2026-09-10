@@ -66,6 +66,9 @@ struct VehicleControlView: View {
             revealRail = true
             railHasAppeared = true
             loadHomeLayout()
+            if fleetAccount.isSignedIn && fleetAccount.lastAccountUpdate == nil {
+                await fleetAccount.refreshAccount()
+            }
         }
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
@@ -136,6 +139,7 @@ struct VehicleControlView: View {
                 Text("蓝牙车钥匙").font(.caption).foregroundStyle(AppTheme.muted)
             }
             Spacer()
+            AccountStatusButton { showingTeslaAccount = true }
             Menu {
                 if vehicle.pairedVehicleIDs.count > 1 {
                     Section {
@@ -233,7 +237,7 @@ struct VehicleControlView: View {
             }
             .buttonStyle(UtilityPressStyle())
             .accessibilityHint("查看车辆详情")
-            VehicleConnectionSummary { showingTeslaAccount = true }
+            VehicleConnectionSummary()
             Divider().overlay(AppTheme.hairline)
             let metricsLayout = typeSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
@@ -600,7 +604,7 @@ private struct RenameVehicleView: View {
     }
 }
 
-private struct SecuritySettingsView: View {
+struct SecuritySettingsView: View {
     @Environment(VehicleController.self) private var vehicle
     @Environment(\.dismiss) private var dismiss
     var body: some View {

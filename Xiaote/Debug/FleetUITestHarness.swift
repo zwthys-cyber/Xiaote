@@ -13,15 +13,19 @@ struct FleetUITestHarness: View {
     private let english: Bool
     private let pairing: Bool
     private let vinScanner: Bool
+    private let fleetHome: Bool
+    private let rootTabs: Bool
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FleetUITestURLProtocol.self]
         let session = URLSession(configuration: configuration)
         let isPairing = ProcessInfo.processInfo.arguments.contains("--pairing")
+        let signedOut = isPairing || ProcessInfo.processInfo.arguments.contains("--account-signed-out")
+        let expired = ProcessInfo.processInfo.arguments.contains("--account-expired")
         _account = State(initialValue: FleetAccountController(
             api: FleetAPIClient(session: session),
-            restoredSession: isPairing ? nil : FleetSession(token: "ui-test-only", expiresAt: .distantFuture), usesKeychain: false
+            restoredSession: signedOut ? nil : FleetSession(token: "ui-test-only", expiresAt: expired ? .distantPast : .distantFuture), usesKeychain: false
         ))
         emptyAccount = ProcessInfo.processInfo.arguments.contains("--empty-account")
         largeText = ProcessInfo.processInfo.arguments.contains("--large-text")
@@ -29,9 +33,11 @@ struct FleetUITestHarness: View {
         english = ProcessInfo.processInfo.arguments.contains("--english")
         pairing = isPairing
         vinScanner = ProcessInfo.processInfo.arguments.contains("--vin-scanner")
+        fleetHome = ProcessInfo.processInfo.arguments.contains("--fleet-home")
+        rootTabs = ProcessInfo.processInfo.arguments.contains("--root-tabs")
         let local = VehicleController(managesPassiveKey: false)
         local.vehicleID = "S0123456789abcdefC"
-        local.isPaired = true
+        local.isPaired = !ProcessInfo.processInfo.arguments.contains("--cloud-only")
         local.phase = isPairing ? .idle : .connected
         local.customVehicleName = "小特 Model 3"
         local.passiveKeyOnline = true
@@ -51,8 +57,13 @@ struct FleetUITestHarness: View {
     var body: some View {
         Group {
             if ready {
-                if vinScanner {
+                if rootTabs {
+                    RootView().environment(localVehicle).environment(account)
+                } else if vinScanner {
                     VINScannerScreen(onRecognized: { _ in }, onCancel: {}, previewMode: true)
+                } else if fleetHome {
+                    NavigationStack { FleetHomeView() }
+                        .environment(localVehicle).environment(account)
                 } else if pairing {
                     NavigationStack { PairVehicleView(automaticallyScans: false) }
                         .environment(localVehicle).environment(account)
@@ -89,7 +100,12 @@ private final class FleetUITestURLProtocol: URLProtocol {
         var status = 200
         var delay = 0.1
         if path == "/v1/vehicles" {
-            body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
+            if args.contains("--account-unavailable") {
+                status = 503
+                body = #"{"error":{"message":"UI fixture: service unavailable"}}"#
+            } else {
+                body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
+            }
             delay = args.contains("--empty-account") ? 1 : 0.1
         } else if path.hasSuffix("/data") {
             if args.contains("--data-failure") {

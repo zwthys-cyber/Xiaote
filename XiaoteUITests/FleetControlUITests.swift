@@ -33,6 +33,137 @@ final class FleetControlUITests: XCTestCase {
         capture("vin-scanner")
     }
 
+    func testBottomTabsPreserveLocalNavigationAndVehicle() {
+        let app = launch("--root-tabs")
+        let tabs = app.tabBars.firstMatch
+        XCTAssertTrue(tabs.buttons["车辆"].waitForExistence(timeout: 10))
+        XCTAssertTrue(tabs.buttons["功能"].isHittable)
+        XCTAssertTrue(tabs.buttons["我的"].isHittable)
+        XCTAssertTrue(app.buttons["home-account-status"].exists)
+        capture("tabs-vehicle")
+        tabs.buttons["功能"].tap()
+        let charging = app.buttons["functions-charging"]
+        XCTAssertTrue(charging.waitForExistence(timeout: 5))
+        capture("tabs-functions")
+        charging.tap()
+        XCTAssertTrue(app.navigationBars["充电"].waitForExistence(timeout: 5))
+        tabs.buttons["我的"].tap()
+        XCTAssertTrue(app.buttons["profile-account"].waitForExistence(timeout: 5))
+        capture("tabs-profile")
+        app.buttons["profile-security"].tap()
+        XCTAssertTrue(app.navigationBars["Face ID 保护"].waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+        tabs.buttons["功能"].tap()
+        XCTAssertTrue(app.navigationBars["充电"].waitForExistence(timeout: 5), "Each tab preserves its navigation stack")
+        XCTAssertTrue(app.buttons["开始充电"].isEnabled, "Switching tabs must preserve the fixture's active connection")
+        tabs.buttons["车辆"].tap()
+        XCTAssertTrue(app.staticTexts["小特 Model 3"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["home-account-status"].isHittable)
+    }
+
+    func testBottomTabsAtLargeTextAndAccountDismissal() {
+        let app = launch("--root-tabs", "--large-text")
+        let tabs = app.tabBars.firstMatch
+        XCTAssertTrue(tabs.buttons["功能"].waitForExistence(timeout: 10))
+        capture("tabs-vehicle-large-text")
+        tabs.buttons["功能"].tap()
+        XCTAssertTrue(app.buttons["functions-charging"].waitForExistence(timeout: 5))
+        capture("tabs-functions-large-text")
+        tabs.buttons["我的"].tap()
+        let account = app.buttons["profile-account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        capture("tabs-profile-large-text")
+        account.tap()
+        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        XCTAssertTrue(tabs.buttons["车辆"].isHittable)
+    }
+
+    func testCloudOnlyTabsReachRemoteCommands() {
+        let app = launch("--root-tabs", "--cloud-only")
+        let tabs = app.tabBars.firstMatch
+        XCTAssertTrue(tabs.buttons["功能"].waitForExistence(timeout: 10))
+        tabs.buttons["功能"].tap()
+        XCTAssertFalse(app.buttons["functions-charging"].exists)
+        XCTAssertTrue(app.buttons["functions-add-key"].exists)
+        let remote = app.buttons["functions-remote-1"]
+        XCTAssertTrue(remote.waitForExistence(timeout: 5))
+        capture("tabs-functions-cloud-only")
+        remote.tap()
+        XCTAssertTrue(app.buttons["remote-quick-door_lock"].waitForExistence(timeout: 5))
+        tabs.buttons["车辆"].tap()
+        XCTAssertTrue(app.buttons["home-account-status"].waitForExistence(timeout: 5))
+        tabs.buttons["功能"].tap()
+        XCTAssertTrue(app.buttons["remote-quick-door_lock"].waitForExistence(timeout: 5))
+    }
+
+    func testSignedOutFunctionsHaveAccountRecovery() {
+        let app = launch("--root-tabs", "--account-signed-out")
+        let tabs = app.tabBars.firstMatch
+        XCTAssertTrue(tabs.buttons["功能"].waitForExistence(timeout: 10))
+        tabs.buttons["功能"].tap()
+        let accountEntry = app.buttons["functions-account"]
+        reveal(accountEntry, in: app)
+        accountEntry.tap()
+        let account = app.buttons["profile-account"]
+        XCTAssertTrue(account.waitForExistence(timeout: 5))
+        account.tap()
+        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+        tabs.buttons["车辆"].tap()
+        XCTAssertEqual(app.buttons["home-account-status"].value as? String, "未登录")
+    }
+
+    func testLocalHomeUsesAccountIconAndOpensAccount() {
+        let app = launch("--local-home")
+        let status = app.buttons["home-account-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertEqual(status.value as? String, "账号已连接")
+        XCTAssertGreaterThanOrEqual(status.frame.width, 44)
+        XCTAssertFalse(app.staticTexts["远程连接"].exists)
+        XCTAssertFalse(app.staticTexts["可用"].exists)
+        capture("home-account-icon-connected")
+        status.tap()
+        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+    }
+
+    func testFleetHomeAccountFailureIconLeadsToRecovery() {
+        let app = launch("--fleet-home", "--account-unavailable")
+        let status = app.buttons["home-account-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        expectation(for: NSPredicate(format: "value == %@", "账号同步失败，点按重试"), evaluatedWith: status)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(app.staticTexts["远程连接暂不可用"].exists)
+        XCTAssertFalse(app.staticTexts["通过 Tesla Fleet API 获取车辆状态"].exists)
+        capture("home-account-icon-unavailable")
+        status.tap()
+        XCTAssertTrue(app.buttons["重试连接"].waitForExistence(timeout: 5))
+    }
+
+    func testExpiredAccountIconAtLargeTextKeepsLocalControlsReachable() {
+        let app = launch("--local-home", "--account-expired", "--large-text")
+        let status = app.buttons["home-account-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertEqual(status.value as? String, "需要重新登录")
+        XCTAssertTrue(app.buttons["车辆选项"].isHittable)
+        capture("home-account-icon-expired-large-text")
+        status.tap()
+        XCTAssertTrue(app.buttons["重新登录"].waitForExistence(timeout: 5))
+    }
+
+    func testSignedOutAccountIconOpensSignIn() {
+        let app = launch("--local-home", "--account-signed-out")
+        let status = app.buttons["home-account-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertEqual(status.value as? String, "未登录")
+        capture("home-account-icon-signed-out")
+        status.tap()
+        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
+    }
+
     func testHomeAndCommandReceiptWithoutOptimisticStateChange() {
         let app = launch()
         let lock = app.buttons["remote-quick-door_lock"]
