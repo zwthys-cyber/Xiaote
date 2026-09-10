@@ -3,16 +3,15 @@ import SwiftUI
 struct FleetHomeView: View {
     @Environment(FleetAccountController.self) private var account
     @Environment(VehicleController.self) private var localVehicle
-    @State private var isPullRefreshing = false
     @State private var showingAccount = false
     @State private var showingBluetoothPairing = false
+    @State private var isPullRefreshing = false
 
     var body: some View {
         VStack(spacing: 0) {
             header
             ScrollView {
                 VStack(spacing: 18) {
-                    accountStatus
                     vehicles
                     bluetoothKeyCard
                 }
@@ -48,11 +47,7 @@ struct FleetHomeView: View {
     private var header: some View {
         HStack {
             Spacer()
-            Button { showingAccount = true } label: {
-                TeslaAccountAvatarLabel(profile: account.profile, isSignedIn: true)
-            }
-            .buttonStyle(UtilityPressStyle())
-            .accessibilityLabel("Tesla 账号")
+            AccountStatusButton(showsActivity: !isPullRefreshing) { showingAccount = true }
         }
         .padding(.horizontal, 22)
         .padding(.top, 10)
@@ -61,31 +56,6 @@ struct FleetHomeView: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(AppTheme.hairline.opacity(0.55)).frame(height: 0.5)
         }
-    }
-
-    private var accountStatus: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "network")
-                .font(.title2)
-                .frame(width: 40, height: 40)
-                .background(AppTheme.raised, in: Circle())
-            VStack(alignment: .leading, spacing: 3) {
-                Text(account.connectionState.title).font(.headline)
-                Text(account.needsReauthentication ? "重新登录后恢复远程功能，本地钥匙仍可使用" : "通过 Tesla Fleet API 获取车辆状态")
-                    .font(.caption).foregroundStyle(AppTheme.muted)
-                if account.needsReauthentication {
-                    Button("重新登录") { Task { await account.signIn() } }
-                        .disabled(account.isWorking)
-                } else if account.connectionState == .unavailable {
-                    Button("重试连接") { Task { await account.refreshAccount() } }
-                        .disabled(account.isWorking)
-                }
-            }
-            Spacer()
-            if account.isWorking && !isPullRefreshing { ProgressView().controlSize(.small).tint(.white) }
-        }
-        .padding(16)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var vehicles: some View {

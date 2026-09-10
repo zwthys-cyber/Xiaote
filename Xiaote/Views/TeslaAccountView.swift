@@ -47,7 +47,10 @@ struct TeslaAccountView: View {
                 Text(account.errorMessage ?? "未知错误")
             }
             .task {
-                if account.isSignedIn && account.vehicles.isEmpty { await account.refreshAccount() }
+                if account.isSignedIn && account.vehicles.isEmpty &&
+                    account.connectionState != .unavailable && !account.needsReauthentication {
+                    await account.refreshAccount()
+                }
                 initialLoadComplete = true
             }
         }

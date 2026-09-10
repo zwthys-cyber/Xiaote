@@ -2,8 +2,6 @@ import SwiftUI
 
 struct VehicleConnectionSummary: View {
     @Environment(VehicleController.self) private var vehicle
-    @Environment(FleetAccountController.self) private var account
-    let openAccount: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { timeline in
@@ -11,14 +9,6 @@ struct VehicleConnectionSummary: View {
                 row("无感钥匙", value: vehicle.passiveEntryEnabled ? (vehicle.passiveKeyOnline ? "在线" : "恢复中") : "已关闭",
                     symbol: "key.horizontal", ready: vehicle.passiveEntryEnabled && vehicle.passiveKeyOnline)
                 row("本地控制", value: vehicle.phase.title, symbol: "antenna.radiowaves.left.and.right", ready: locallyConnected)
-                Button(action: openAccount) {
-                    row("远程连接", value: cloudTitle(at: timeline.date), symbol: "network",
-                        ready: account.connectionState == .available && VehicleDataAge.isFresh(account.lastAccountUpdate, at: timeline.date))
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("查看账号或重新登录")
                 HStack(spacing: 5) {
                     Image(systemName: "clock")
                     if let date = vehicle.stateFreshness.updatedAt(requiring: [.battery, .range]) {
@@ -34,23 +24,12 @@ struct VehicleConnectionSummary: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .task {
-            if account.isSignedIn && account.lastAccountUpdate == nil { await account.refreshAccount() }
-        }
     }
 
     private var locallyConnected: Bool {
         if vehicle.phase == .connected { return true }
         if case .executing = vehicle.phase { return true }
         return false
-    }
-
-    private func cloudTitle(at now: Date) -> String {
-        guard account.isSignedIn else { return "未连接账号" }
-        if account.connectionState == .available {
-            return VehicleDataAge.isFresh(account.lastAccountUpdate, at: now) ? "可用" : "待检查"
-        }
-        return account.connectionState.title
     }
 
     private func row(_ title: String, value: String, symbol: String, ready: Bool) -> some View {
