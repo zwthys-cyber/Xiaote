@@ -43,7 +43,6 @@ struct AccountStatusButton: View {
             .contentShape(Circle())
         }
         .buttonStyle(UtilityPressStyle())
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Tesla 账号")
         .accessibilityValue(Text(LocalizedStringKey(accessibilityStatus)))
         .accessibilityHint("查看账号或重新登录")
