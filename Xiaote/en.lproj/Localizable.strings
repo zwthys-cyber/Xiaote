@@ -152,6 +152,10 @@
 "电量与续航为旧数据" = "Battery and Range Are Outdated";
 "电量与续航尚未完整读取" = "Battery and Range Not Yet Available";
 "查看账号或重新登录" = "View account or sign in again";
+"充电站" = "Charging sites";
+"哨兵" = "Sentry";
+"座舱" = "Cabin";
+"远程控制" = "Remote controls";
 "充电供电提醒" = "Charging Power Alerts";
 "等待车辆信息" = "Waiting for Vehicle";
 "iPhone 可达" = "iPhone Reachable";
@@ -363,7 +367,6 @@
 "当前远程服务尚未支持这个功能。" = "The remote service does not support this feature yet.";
 "请先在车辆中添加小特虚拟钥匙。" = "Add the Xiaote virtual key to the vehicle first.";
 "正在同步账号" = "Syncing account";
-"账号已连接" = "Account connected";
 "账号同步失败，点按重试" = "Account sync failed. Tap for recovery.";
 "需要重新登录" = "Sign in again";
 "功能" = "Functions";
