@@ -1,6 +1,6 @@
 # 架构与协议
 
-本文对应 App `2.3.4` 与 `main` 分支。小特蓝牙钥匙不通过 Tesla 账号或 Fleet API 控车，车辆链路如下：
+小特提供本地蓝牙控制与 Tesla 账号远程控制两条独立链路。本地蓝牙钥匙无需账号或网络，链路如下：
 
 1. `NearbyTeslaScanner` 使用 CoreBluetooth 扫描附近广播，并校验 Tesla 本地名称格式。
 2. App 为每辆车在 Keychain 生成独立 P-256 私钥。
@@ -12,6 +12,11 @@
 
 ## 主要模块
 
+- `Views/RootView.swift`：原生底部「车辆 / 功能 / 我的」三栏，每栏独立 `NavigationStack`。控制器由 `XiaoteApp` 持有并通过环境共享，切栏不调用连接、断开或切车；切换实际车辆后清理相关功能目的地，避免保留上一辆车的编辑状态。
+- `Views/FunctionsView.swift`：蓝牙功能与账号车辆远程控制的集中入口，复用现有功能页和命令确认流程。
+- `Views/ProfileView.swift`：账号、车辆详情、安全保护、提醒、诊断与添加钥匙；添加钥匙继续使用现有取消恢复流程。
+- `Views/Components/AccountStatusButton.swift`：主页账号状态图标及 VoiceOver 描述；账号连接成功不表示车辆在线或命令执行成功。下拉刷新时不重复显示图标内加载动画。
+- `Cloud/FleetAccountController.swift` / `FleetRemoteController.swift`：账号授权与车辆目录、远程状态读取及命令回执。远程入口明确选择账号车辆，车辆状态与蓝牙状态独立。
 - `Bluetooth/NearbyTeslaScanner.swift`：扫描、时间窗口中位数、非对称自适应 RSSI 平滑、距离估算、主候选迟滞和过期车辆过滤；该距离只服务添加车辆 UI，不参与 Phone Key 拉门认证。
 - `Bluetooth/LegacyVCSECClient.swift`：VIN-free 配对及会话引导。
 - `Model/VehicleController.swift`：连接生命周期、车辆状态、命令调度、媒体同步和错误呈现。
