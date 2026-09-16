@@ -137,6 +137,15 @@ jobs:
 
       - name: Verify compact iPhone UI
         run: |
+          # A reused self-hosted simulator can still have a busy SpringBoard
+          # or a stale XCTest runner after an interrupted job. Start this
+          # dedicated test device from a known state and await full boot.
+          xcrun simctl shutdown "$UI_SMALL_PHONE_ID" || true
+          for attempt in 1 2 3; do
+            if xcrun simctl boot "$UI_SMALL_PHONE_ID"; then break; fi
+            sleep 2
+          done
+          xcrun simctl bootstatus "$UI_SMALL_PHONE_ID" -b
           xcodebuild test \
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
