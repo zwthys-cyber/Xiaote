@@ -106,7 +106,6 @@ final class VehicleController {
     var faceIDProtection: FaceIDProtection
     var phase: Phase = .idle
     var showingError = false
-    var errorIsNonfatal = false
     var errorMessage = ""
     var showingVehicleIdentity = false
     var canConfirmPairing = false
@@ -205,6 +204,10 @@ final class VehicleController {
     private var handshakeDidTimeOut = false
     private var passiveReconnectTask: Task<Void, Never>?
     private var foregroundConnectionInProgress = false
+    /// Bumped whenever the app moves to the background. An in-flight connect
+    /// that fails only after iOS resumes the app must not present its error:
+    /// the owner backgrounded before it completed.
+    private var connectGeneration = 0
     private var sessionNeedsForegroundValidation = false
     private var appIsBackgrounded = false
     private var commandConnectionPausedForBackground = false
@@ -338,7 +341,7 @@ final class VehicleController {
             let restoresExistingVehicle = vehicleBeforeAdding != nil
             await restoreVehicleAfterFailedAddition()
             if restoresExistingVehicle { presentNonfatalError(message) }
-            else { presentError(message) }
+            else { presentError(message, presentAlert: true) }
         }
     }
 
@@ -614,7 +617,7 @@ final class VehicleController {
 
     func confirmPairingAndConnect() async {
         guard let pendingPairing else {
-            presentError("配对会话已失效，请重新搜索车辆。")
+            presentError("配对会话已失效，请重新搜索车辆。", presentAlert: true)
             return
         }
 
@@ -635,7 +638,7 @@ final class VehicleController {
             let restoresExistingVehicle = vehicleBeforeAdding != nil
             await restoreVehicleAfterFailedAddition()
             if restoresExistingVehicle { presentNonfatalError(message) }
-            else { presentError(message) }
+            else { presentError(message, presentAlert: true) }
         }
     }
 
@@ -659,12 +662,14 @@ final class VehicleController {
         phase = .handshaking
         handshakeDidTimeOut = false
         handshakeTimeoutTask?.cancel()
+        let generation = connectGeneration
         handshakeTimeoutTask = Task { [weak self, weak link] in
             // VehicleInfo discovery may consume up to ten seconds before the
             // legacy-session fallback starts, so the whole bootstrap needs a
             // wider deadline than either individual operation.
             try? await Task.sleep(for: .seconds(35))
-            guard !Task.isCancelled, let self, self.phase == .handshaking else { return }
+            guard !Task.isCancelled, let self,
+                  self.phase == .handshaking, generation == self.connectGeneration else { return }
             self.handshakeDidTimeOut = true
             link?.close()
             if presentErrors {
@@ -703,10 +708,11 @@ final class VehicleController {
         guard !foregroundConnectionInProgress else { return }
         foregroundConnectionInProgress = true
         defer { foregroundConnectionInProgress = false }
+        let generation = connectGeneration
         do {
             try await connect(presentErrors: presentErrors)
         } catch let error as TeslaError {
-            guard !appIsBackgrounded, presentErrors else { return }
+            guard !appIsBackgrounded, generation == connectGeneration, presentErrors else { return }
             switch error {
             case .bluetoothUnavailable, .bluetoothUnsupported:
                 // CoreBluetooth can transiently publish an unavailable state
@@ -715,13 +721,14 @@ final class VehicleController {
                 // modern iPhone lacks BLE hardware.
                 disconnect()
                 try? await Task.sleep(for: .milliseconds(800))
+                guard !appIsBackgrounded, generation == connectGeneration, presentErrors else { return }
                 do { try await connect(presentErrors: presentErrors) }
                 catch { presentError(Self.describe(error)) }
             default:
                 presentError(Self.describe(error))
             }
         } catch {
-            guard !appIsBackgrounded, presentErrors else { return }
+            guard !appIsBackgrounded, generation == connectGeneration, presentErrors else { return }
             // On this path cancellation is the connect timeout cancelling the
             // wait; the owner can act on that, unlike a generic cancellation.
             if error is CancellationError {
@@ -791,6 +798,7 @@ final class VehicleController {
 
     func noteAppMovedToBackground() {
         appIsBackgrounded = true
+        connectGeneration += 1
         AppDiagnostics.shared.record("app.scene.background")
         sessionNeedsForegroundValidation = true
         // CoreBluetooth keeps the outstanding restoration connection. A
@@ -823,59 +831,29 @@ final class VehicleController {
     /// One-time pairing notice. Force-quitting the app or rebooting the phone
     /// silently disables passive entry until the app is opened again; tell the
     /// owner once, right after pairing, instead of after a failed unlock.
+    /// The owner asked for silent operation: no system notifications. Keep
+    /// the guidance in the diagnostics history instead.
     private func presentPairingNoticeIfNeeded() {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: AppStorageKeys.passiveKeyPairingNoticeSent) else { return }
         defaults.set(true, forKey: AppStorageKeys.passiveKeyPairingNoticeSent)
-        Task {
-            let center = UNUserNotificationCenter.current()
-            try? await center.requestAuthorization(options: [.alert, .sound])
-            let content = UNMutableNotificationContent()
-            content.title = "蓝牙车钥匙已添加"
-            content.body = "请保持小特在后台运行，不要从后台划掉；重启手机后请先打开一次小特，再靠近车辆。"
-            let request = UNNotificationRequest(
-                identifier: "passive-key-pairing-notice",
-                content: content,
-                trigger: nil
-            )
-            try? await center.add(request)
-        }
+        AppDiagnostics.shared.record("ble.passive.pairing.silent-notice")
     }
 
     /// A passive-key interruption that never recovered (force-quit, phone
     /// reboot, or system termination while the vehicle was asleep) leaves a
-    /// marker behind. Tell the owner once per day when the app returns,
-    /// instead of leaving them confused at the door.
+    /// marker behind. Record it in the diagnostics history only.
     private func notifyPassiveKeyInterruptionIfNeeded() {
         guard managesPassiveKey, isPaired, passiveEntryEnabled else { return }
         let defaults = UserDefaults.standard
         guard let interruptedAt = defaults.object(forKey: AppStorageKeys.passiveKeyInterruptedAt) as? Date,
               Date().timeIntervalSince(interruptedAt) > 60 else { return }
-        if let lastShownAt = defaults.object(forKey: AppStorageKeys.passiveKeyInterruptNoticeShownAt) as? Date,
-           Date().timeIntervalSince(lastShownAt) < 24 * 3600 { return }
-        defaults.set(Date(), forKey: AppStorageKeys.passiveKeyInterruptNoticeShownAt)
         defaults.removeObject(forKey: AppStorageKeys.passiveKeyInterruptedAt)
-        let content = UNMutableNotificationContent()
-        content.title = "被动钥匙曾中断"
-        content.body = "请勿从后台划掉小特；重启手机后请先打开一次小特再靠近车辆。"
-        let request = UNNotificationRequest(
-            identifier: "passive-key-interrupted",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
+        AppDiagnostics.shared.record("ble.passive.interruption.silent-notice")
     }
 
     private func notifyPassiveKeyBluetoothUnavailable() {
-        let content = UNMutableNotificationContent()
-        content.title = "被动钥匙不可用"
-        content.body = "iPhone 蓝牙未开启，无法无感解锁。返回车辆前请打开蓝牙，或使用实体钥匙卡。"
-        let request = UNNotificationRequest(
-            identifier: "passive-key-bluetooth-unavailable",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
+        AppDiagnostics.shared.record("ble.passive.bluetooth-unavailable.silent-notice")
     }
 
     func presentUserError(_ message: String) { presentError(message) }
@@ -2180,19 +2158,19 @@ final class VehicleController {
         }
     }
 
-    private func presentError(_ message: String) {
+    /// Silent by default: the failure shows in the status line via
+    /// `phase = .failed(message)`. Only pairing needs a blocking alert —
+    /// a silent failure there leaves the owner stuck with no explanation.
+    private func presentError(_ message: String, presentAlert: Bool = false) {
         errorMessage = message
         lastCommandFailure = message
         phase = .failed(message)
-        errorIsNonfatal = false
-        showingError = true
+        if presentAlert { showingError = true }
     }
 
     private func presentNonfatalError(_ message: String) {
         errorMessage = message
         lastCommandFailure = message
-        errorIsNonfatal = true
-        showingError = true
     }
 
     private static func isVCSECAlreadyOn(_ error: Error) -> Bool {
