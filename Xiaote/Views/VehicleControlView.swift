@@ -417,8 +417,8 @@ struct VehicleControlView: View {
 
     @ViewBuilder
     private var volumeBar: some View {
-        if let max = vehicle.mediaVolumeMax, max > 0 {
-            let volume = vehicle.mediaVolume.map { max(0, min($0 / max, 1)) } ?? 0
+        if let volumeMax = vehicle.mediaVolumeMax, volumeMax > 0 {
+            let volume = vehicle.mediaVolume.map { Swift.max(0, Swift.min($0 / volumeMax, 1)) } ?? 0
             HStack(spacing: 8) {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
@@ -884,8 +884,8 @@ private struct MusicPanelView: View {
 
     @ViewBuilder
     private var panelVolumeBar: some View {
-        if let max = vehicle.mediaVolumeMax, max > 0 {
-            let volume = vehicle.mediaVolume.map { max(0, min($0 / max, 1)) } ?? 0
+        if let volumeMax = vehicle.mediaVolumeMax, volumeMax > 0 {
+            let volume = vehicle.mediaVolume.map { Swift.max(0, Swift.min($0 / volumeMax, 1)) } ?? 0
             HStack(spacing: 8) {
                 Image(systemName: "speaker.fill").font(.caption).foregroundStyle(AppTheme.muted)
                 GeometryReader { geometry in
