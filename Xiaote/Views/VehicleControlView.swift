@@ -215,10 +215,11 @@ struct VehicleControlView: View {
                 VehicleDetailView()
             } label: {
                 HStack(spacing: 14) {
-                    Image("TeslaIcon-Model3")
+                    Image("TeslaCar-Artwork")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 42, height: 42)
+                        .frame(width: 64, height: 70)
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
                             Circle()
