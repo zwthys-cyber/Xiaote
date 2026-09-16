@@ -23,20 +23,33 @@ struct AutomationScenesView: View {
                 } header: { Text(execution.name) }
             }
             Section {
-                ForEach(vehicle.automationScenes) { scene in
-                    Button { Task { await vehicle.runScene(scene) } } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: scene.symbol).frame(width: 34, height: 34).background(AppTheme.raised, in: Circle())
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(scene.name).foregroundStyle(.primary)
-                                Text(scene.actions.map(\.title).joined(separator: " → "))
-                                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                            }
-                            Spacer(); Image(systemName: "play.fill").font(.caption)
-                        }.contentShape(Rectangle())
+                ForEach(Array(vehicle.automationScenes.enumerated()), id: \.element.id) { index, scene in
+                    HStack(spacing: 14) {
+                        Button { Task { await vehicle.runScene(scene) } } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: scene.symbol).frame(width: 34, height: 34).background(AppTheme.raised, in: Circle())
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(scene.name).foregroundStyle(.primary)
+                                    Text(scene.actions.map(\.title).joined(separator: " → "))
+                                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(); Image(systemName: "play.fill").font(.caption)
+                            }.contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(vehicle.isSceneRunning || vehicle.executingAction != nil)
+                        Menu {
+                            Button("编辑") { editingScene = scene }.disabled(vehicle.isSceneRunning)
+                            Button("删除", role: .destructive) {
+                                vehicle.deleteScenes(at: IndexSet(integer: index))
+                            }.disabled(vehicle.isSceneRunning)
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(AppTheme.muted)
+                                .frame(width: 32, height: 38)
+                                .contentShape(Rectangle())
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .disabled(vehicle.isSceneRunning || vehicle.executingAction != nil)
                     .swipeActions { Button("编辑") { editingScene = scene }.tint(.gray).disabled(vehicle.isSceneRunning) }
                     .deleteDisabled(vehicle.isSceneRunning)
                 }
