@@ -638,7 +638,7 @@ final class VehicleController {
         }
     }
 
-    func connect() async throws {
+    func connect(presentErrors: Bool = true) async throws {
         guard !vehicleID.isEmpty else { throw LocalError.noVehicle }
         intentionalDisconnect = false
         AppDiagnostics.shared.record("ble.connect.begin")
@@ -666,7 +666,9 @@ final class VehicleController {
             guard !Task.isCancelled, let self, self.phase == .handshaking else { return }
             self.handshakeDidTimeOut = true
             link?.close()
-            self.presentError("安全连接超时。请唤醒车辆、靠近驾驶位后重试。")
+            if presentErrors {
+                self.presentError("安全连接超时。请唤醒车辆、靠近驾驶位后重试。")
+            }
         }
         if let cachedVIN = vin, usesModernCommands {
             try await startModernSession(on: link, key: key, vin: cachedVIN)
@@ -696,14 +698,14 @@ final class VehicleController {
         await refreshVehicleState()
     }
 
-    func connectFromUI() async {
+    func connectFromUI(presentErrors: Bool = true) async {
         guard !foregroundConnectionInProgress else { return }
         foregroundConnectionInProgress = true
         defer { foregroundConnectionInProgress = false }
         do {
-            try await connect()
+            try await connect(presentErrors: presentErrors)
         } catch let error as TeslaError {
-            guard !appIsBackgrounded else { return }
+            guard !appIsBackgrounded, presentErrors else { return }
             switch error {
             case .bluetoothUnavailable, .bluetoothUnsupported:
                 // CoreBluetooth can transiently publish an unavailable state
@@ -712,13 +714,13 @@ final class VehicleController {
                 // modern iPhone lacks BLE hardware.
                 disconnect()
                 try? await Task.sleep(for: .milliseconds(800))
-                do { try await connect() }
+                do { try await connect(presentErrors: presentErrors) }
                 catch { presentError(Self.describe(error)) }
             default:
                 presentError(Self.describe(error))
             }
         } catch {
-            guard !appIsBackgrounded else { return }
+            guard !appIsBackgrounded, presentErrors else { return }
             // On this path cancellation is the connect timeout cancelling the
             // wait; the owner can act on that, unlike a generic cancellation.
             if error is CancellationError {
@@ -771,16 +773,16 @@ final class VehicleController {
                     await refreshVehicleState()
                 } catch {
                     disconnect()
-                    await connectFromUI()
+                    await connectFromUI(presentErrors: false)
                 }
             } else {
                 // VIN-free legacy sessions cannot be health-checked without
                 // consuming a command response. Rebuild after suspension.
                 disconnect()
-                await connectFromUI()
+                await connectFromUI(presentErrors: false)
             }
         case .idle, .failed:
-            await connectFromUI()
+            await connectFromUI(presentErrors: false)
         default:
             break
         }
@@ -2273,6 +2275,28 @@ final class VehicleController {
         // timeout, vehicle switch, a newer connection taking over), never a
         // failure the owner can act on. Never show the raw CancellationError.
         if error is CancellationError { return "操作已取消，请重试。" }
+        // The kit's errorDescription strings are English developer text.
+        // Map the failures owners actually hit to actionable Chinese before
+        // falling back to the raw description.
+        if let teslaError = error as? TeslaError {
+            switch teslaError {
+            case .timeout, .scanTimedOut:
+                return "车辆无响应，可能已超出蓝牙范围或正在休眠。"
+            case .vehicleBusy:
+                return "车辆正忙或正在唤醒，请稍后重试。"
+            case .notConnected:
+                return "蓝牙连接已断开。"
+            case .bluetoothPoweredOff:
+                return "蓝牙已关闭，请在系统设置中打开蓝牙。"
+            case .bluetoothUnauthorized:
+                return "未授予蓝牙权限，请在系统设置中允许。"
+            case .bluetoothUnavailable:
+                return "当前无法使用蓝牙。"
+            case .maxBLEConnectionsExceeded:
+                return "车辆蓝牙连接数已达上限，请先断开其它设备。"
+            default: break
+            }
+        }
         return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 
