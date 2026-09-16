@@ -312,6 +312,7 @@ struct VehicleControlView: View {
         }
         .buttonStyle(UtilityPressStyle())
         .disabled(!connected || vehicle.executingAction != nil)
+        .opacity(connected ? 1 : 0.34)
         .accessibilityLabel(label)
         .accessibilityHint("立即向车辆发送\(label)命令")
     }
@@ -428,6 +429,7 @@ struct VehicleControlView: View {
                 }
                 .buttonStyle(UtilityPressStyle())
                 .disabled(!connected || vehicle.executingAction != nil)
+                .opacity(connected ? 1 : 0.34)
             }
             HStack {
                 temperatureButton("minus") { vehicle.targetTemperature - 0.5 }
@@ -517,6 +519,7 @@ struct VehicleControlView: View {
         }
         .buttonStyle(UtilityPressStyle())
         .disabled(!connected || vehicle.executingAction != nil)
+        .opacity(connected ? 1 : 0.34)
         .accessibilityLabel(symbol == "minus" ? "降低温度" : "升高温度")
     }
 
