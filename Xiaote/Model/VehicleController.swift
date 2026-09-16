@@ -106,6 +106,7 @@ final class VehicleController {
     var faceIDProtection: FaceIDProtection
     var phase: Phase = .idle
     var showingError = false
+    var errorIsNonfatal = false
     var errorMessage = ""
     var showingVehicleIdentity = false
     var canConfirmPairing = false
@@ -2183,12 +2184,14 @@ final class VehicleController {
         errorMessage = message
         lastCommandFailure = message
         phase = .failed(message)
+        errorIsNonfatal = false
         showingError = true
     }
 
     private func presentNonfatalError(_ message: String) {
         errorMessage = message
         lastCommandFailure = message
+        errorIsNonfatal = true
         showingError = true
     }
 

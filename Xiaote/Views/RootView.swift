@@ -23,7 +23,7 @@ struct RootView: View {
             }
             .animation(reduceMotion ? AppMotion.reduced : AppMotion.state, value: vehicle.isPaired)
             .animation(reduceMotion ? AppMotion.reduced : AppMotion.state, value: fleetAccount.isSignedIn)
-            .alert("操作失败", isPresented: $vehicle.showingError) {
+            .alert(vehicle.errorIsNonfatal ? "提示" : "操作失败", isPresented: $vehicle.showingError) {
                 Button("好", role: .cancel) {}
             } message: {
                 Text(vehicle.errorMessage)
