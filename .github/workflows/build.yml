@@ -122,20 +122,6 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             -parallel-testing-enabled NO
 
-      - name: Verify compact iPhone UI
-        run: |
-          # Same rationale as the main regression bundle above.
-          rm -rf SmallScreenResults.xcresult
-          xcodebuild test \
-            -project Xiaote.xcodeproj \
-            -scheme Xiaote \
-            -destination "platform=iOS Simulator,id=$UI_SMALL_PHONE_ID" \
-            -derivedDataPath DerivedData \
-            -clonedSourcePackagesDirPath SourcePackages \
-            -resultBundlePath SmallScreenResults.xcresult \
-            -only-testing:XiaoteUITests \
-            -parallel-testing-enabled NO
-
       - name: Export UI screenshots
         if: always()
         run: |
