@@ -61,7 +61,7 @@ final class LegacyVCSECClient: @unchecked Sendable {
         throw ClientError.timeout
     }
 
-    func startSession() async throws {
+    func startSession(passiveResponder: Bool = false) async throws {
         // The native phone-key bootstrap uses GET_EPHEMERAL_PUBLIC_KEY (3).
         // GET_SESSION_DATA (4) exists in some archived schemas but is not
         // answered consistently by production vehicles.
@@ -70,8 +70,12 @@ final class LegacyVCSECClient: @unchecked Sendable {
         try await connection.send(Self.toVCSECUnsigned(Self.messageField(1, request)))
 
         var sessionBytes: Data?
+        var earlyChallenges: [Data] = []
         for _ in 0 ..< 5 {
             let response = try await nextMessage(seconds: 2)
+            if Self.firstLengthDelimitedField(3, in: response) != nil {
+                earlyChallenges.append(response)
+            }
             if let candidate = Self.firstLengthDelimitedField(2, in: response) {
                 sessionBytes = candidate
                 break
@@ -89,6 +93,13 @@ final class LegacyVCSECClient: @unchecked Sendable {
         // UnsignedMessage.authenticationResponse(level NONE) is an explicitly
         // present, empty nested message: field 3, length 0.
         try await sendSigned(unsignedMessage: Self.messageField(3, Data()))
+        for challenge in earlyChallenges {
+            try await respondToAuthenticationRequest(in: challenge)
+        }
+        // A dedicated Phone Key installs its single inbox consumer next.
+        // Waiting for an optional acknowledgement here costs three seconds
+        // of iOS's short background wake window and delays the first pull.
+        if passiveResponder { return }
         if let response = try? await nextMessage(seconds: 3) {
             // A handle pull can race the bootstrap acknowledgement. Answer
             // its challenge here rather than consuming and discarding it.
