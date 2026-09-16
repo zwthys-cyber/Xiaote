@@ -994,6 +994,12 @@ final class VehicleController {
     @discardableResult
     func toggleClimate() async -> Bool { await setClimateEnabled(!isClimateOn) }
 
+    /// One-tap cabin warm-up from the schedules page: no time setup, the
+    /// vehicle's thermal management decides whether the battery needs heat.
+    func startImmediatePreconditioning() async {
+        if !isClimateOn { _ = await toggleClimate() }
+    }
+
     @discardableResult
     func setClimateEnabled(_ enabled: Bool) async -> Bool {
         guard await execute(.climate, name: enabled ? "打开空调" : "关闭空调", operation: {

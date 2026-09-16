@@ -24,6 +24,25 @@ struct VehicleSchedulesView: View {
 
     var body: some View {
         List {
+            Section {
+                Button {
+                    Task { await vehicle.startImmediatePreconditioning() }
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "thermometer.sun.fill").frame(width: 38, height: 38).background(AppTheme.raised, in: Circle())
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(vehicle.isClimateOn ? "座舱预热已开启" : "立即预热座舱").foregroundStyle(.primary)
+                            Text("立即开启暖风，无需设置时间；低温时车辆会自动加热电池。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if vehicle.isClimateOn { Circle().fill(Color.green).frame(width: 7, height: 7) }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(vehicle.executingAction != nil)
+            }
             if vehicle.vehicleSchedules.isEmpty {
                 ContentUnavailableView("暂无预约", systemImage: "calendar.badge.clock", description: Text("添加充电或预热计划，预约会保存在车辆中。"))
                     .listRowBackground(Color.clear)
