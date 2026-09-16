@@ -2176,7 +2176,11 @@ final class VehicleController {
     }
 
     private static func describe(_ error: Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        // Task cancellation is an internal control-flow signal (connect
+        // timeout, vehicle switch, a newer connection taking over), never a
+        // failure the owner can act on. Never show the raw CancellationError.
+        if error is CancellationError { return "操作已取消，请重试。" }
+        return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }
 
     /// Passive entry has no system-managed recovery while Bluetooth is off or
