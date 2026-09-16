@@ -17,4 +17,6 @@ enum AppStorageKeys {
     static let automationScenesPrefix = "automationScenes."
     static let alertPreferencesPrefix = "alertPreferences."
     static let passiveKeyPairingNoticeSent = "passiveKeyPairingNoticeSent"
+    static let passiveKeyInterruptedAt = "passiveKeyInterruptedAt"
+    static let passiveKeyInterruptNoticeShownAt = "passiveKeyInterruptNoticeShownAt"
 }

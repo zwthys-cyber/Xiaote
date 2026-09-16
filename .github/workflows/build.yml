@@ -242,9 +242,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
-          gh release upload "$GITHUB_REF_NAME" \
-            build/Xiaote-unsigned.ipa \
-            build/Xiaote-unsigned.ipa.sha256 \
-            --clobber
+          # The runner's proxy drops api.github.com connections; retry the
+          # release create and the asset upload instead of failing the tag run.
+          for attempt in 1 2 3; do
+            if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+               gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes; then
+              break
+            fi
+            echo "Release create attempt $attempt failed; retrying"
+            sleep 5
+          done
+          for attempt in 1 2 3; do
+            if gh release upload "$GITHUB_REF_NAME" \
+                build/Xiaote-unsigned.ipa \
+                build/Xiaote-unsigned.ipa.sha256 \
+                --clobber; then
+              exit 0
+            fi
+            echo "Release upload attempt $attempt failed; retrying"
+            sleep 5
+          done
+          exit 1
