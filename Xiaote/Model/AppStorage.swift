@@ -18,5 +18,6 @@ enum AppStorageKeys {
     static let alertPreferencesPrefix = "alertPreferences."
     static let passiveKeyPairingNoticeSent = "passiveKeyPairingNoticeSent"
     static let passiveKeyInterruptedAt = "passiveKeyInterruptedAt"
+    static let vcsecSessionCachePrefix = "vcsecSession."
     static let passiveKeyInterruptNoticeShownAt = "passiveKeyInterruptNoticeShownAt"
 }

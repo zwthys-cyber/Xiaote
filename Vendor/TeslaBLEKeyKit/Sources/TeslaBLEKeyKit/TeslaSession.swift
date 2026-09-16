@@ -390,6 +390,31 @@ final class DomainSessionState {
     func requestID(for message: UniversalMessage_RoutableMessage) -> Data? {
         lock.withLock { session?.requestID(for: message) }
     }
+
+    /// Rebuilds a session from a previously exported SessionInfo. The counter
+    /// in the export is the last one used, so the next authorize continues
+    /// monotonically. The vehicle may have rotated its key since the export;
+    /// callers prove the restored session with an authenticated command and
+    /// fall back to a fresh handshake on failure.
+    func restore(from data: Data, generatedAt: Date = Date()) throws {
+        let info = try Signatures_SessionInfo(serializedBytes: data)
+        let restored = try TeslaSession(
+            privateKey: privateKey,
+            verifierName: verifierName,
+            verifierInfo: info,
+            generatedAt: generatedAt,
+            nonceMode: nonceMode
+        )
+        try lock.withLock {
+            self.session = restored
+        }
+    }
+
+    func export() throws -> Data? {
+        try lock.withLock {
+            try session?.exportSessionInfo()
+        }
+    }
 }
 
 extension NSLock {

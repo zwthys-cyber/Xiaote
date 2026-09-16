@@ -808,6 +808,7 @@ final class VehicleController {
         guard managesPassiveKey, passiveEntryEnabled, connection != nil else { return }
         commandConnectionPausedForBackground = true
         invalidateCommands()
+        persistModernSessionIfNeeded()
         tesla?.disconnect()
         legacyClient?.close()
         tesla = nil
@@ -1634,6 +1635,7 @@ final class VehicleController {
         handshakeTimeoutTask = nil
         trunkStateRefreshTask?.cancel()
         trunkStateRefreshTask = nil
+        persistModernSessionIfNeeded()
         tesla?.disconnect()
         legacyClient?.close()
         passiveKeyClient?.close()
@@ -1882,6 +1884,7 @@ final class VehicleController {
         let removedID = vehicleID
         disconnect()
         try? keyStore.delete(for: removedID)
+        UserDefaults.standard.removeObject(forKey: AppStorageKeys.vcsecSessionCachePrefix + removedID)
         pairedVehicleIDs.removeAll { $0 == removedID }
         UserDefaults.standard.set(pairedVehicleIDs, forKey: AppStorageKeys.pairedVehicleIDs)
         if let next = pairedVehicleIDs.first {
@@ -2024,6 +2027,7 @@ final class VehicleController {
             lastSuccessAction = action
             phase = .connected
             succeeded = true
+            persistModernSessionIfNeeded()
             AppDiagnostics.shared.record("command.\(action.rawValue).success")
             successClearTask = Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(700))
@@ -2125,12 +2129,40 @@ final class VehicleController {
             configuration: .standard
         )
         try await client.connect()
+        // Fast path: resume the session cached from the previous connection
+        // and prove it with the same authenticated wake used after a fresh
+        // handshake. A rotated or expired session (vehicle rebooted, key
+        // cycled, or the wake raced a sleeping vehicle) falls back to the
+        // full handshake below.
+        if let cached = UserDefaults.standard.data(forKey: AppStorageKeys.vcsecSessionCachePrefix + vehicleID) {
+            do {
+                try client.restoreVCSECSession(from: cached)
+                try await activatePhoneKeySession(client)
+                persistModernSessionIfNeeded()
+                tesla = client
+                AppDiagnostics.shared.record("ble.session.restored")
+                return
+            } catch {
+                AppDiagnostics.shared.record("ble.session.restore.rejected")
+                client.invalidateVCSECSession()
+            }
+        }
         try await client.startVCSECSession()
         // Starting the cryptographic session alone does not always mark the
         // phone key online on a sleeping vehicle. Send an authenticated wake
         // before exposing the connection as ready to the UI.
         try await activatePhoneKeySession(client)
+        persistModernSessionIfNeeded()
         tesla = client
+    }
+
+    /// Persists the live VCSEC session (with its current counter) so a later
+    /// connection can skip the handshake. Serialization is a few hundred
+    /// bytes; call after each successful command and before backgrounding.
+    private func persistModernSessionIfNeeded() {
+        guard let tesla,
+              let data = try? tesla.exportVCSECSession() else { return }
+        UserDefaults.standard.set(data, forKey: AppStorageKeys.vcsecSessionCachePrefix + vehicleID)
     }
 
     private func activatePhoneKeySession(_ vehicle: TeslaVehicle) async throws {
