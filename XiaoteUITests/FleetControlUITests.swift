@@ -172,8 +172,12 @@ final class FleetControlUITests: XCTestCase {
         capture("local-charging")
         app.navigationBars.buttons.firstMatch.tap()
         let rail = app.scrollViews["车辆功能"]
+        // The now-playing card grew with the volume bar, shifting the home
+        // layout; make sure the rail sits fully below the fixed header before
+        // swiping it, or the gesture can land on the header instead.
+        reveal(rail, in: app)
         let scenes = app.buttons["场景"].firstMatch
-        for _ in 0..<4 {
+        for _ in 0..<6 {
             if scenes.exists && scenes.isHittable { break }
             rail.swipeLeft()
         }
