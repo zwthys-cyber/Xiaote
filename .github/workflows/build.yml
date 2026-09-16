@@ -190,6 +190,7 @@ jobs:
 
       - name: Retry simulator results upload
         if: always() && steps.simulator_upload.outcome == 'failure'
+        continue-on-error: true
         uses: actions/upload-artifact@v6
         with:
           name: Xiaote-Simulator-Results-Retry
