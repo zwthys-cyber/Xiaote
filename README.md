@@ -61,9 +61,8 @@
 - 统一的无弹跳动效语言，并完整支持“减弱动态效果”
 - GitHub Actions 编译无签名 IPA，供 TrollStore 安装
 
-协议层使用固定到提交 `d5da62c003ac6e2e0d8695f910957dd5708c82d7` 的
-[`zwthys-cyber/TeslaBLEKeyKit`](https://github.com/zwthys-cyber/TeslaBLEKeyKit)。该分支基于上游 TeslaBLEKeyKit，增加 CoreBluetooth 状态恢复和被动钥匙连接处理；消息定义来源于 Tesla 官方
-[`vehicle-command`](https://github.com/teslamotors/vehicle-command)。依赖固定提交是为了确保 App 构建与 CI 测试使用同一份已审查代码。
+协议层使用 vendored 的 `Vendor/TeslaBLEKeyKit`：固定到 `misakatao/TeslaBLEKeyKit` 提交 `d5da62c003ac6e2e0d8695f910957dd5708c82d7` 的源码副本，并包含 CoreBluetooth 状态恢复和被动钥匙连接处理的本地改动，来源与改动范围见 `Vendor/TeslaBLEKeyKit/UPSTREAM.md`；消息定义来源于 Tesla 官方
+[`vehicle-command`](https://github.com/teslamotors/vehicle-command)。Vendor 化是为了让 App 构建与 CI 测试始终使用同一份已审查代码，不依赖外部 fork 仓库的可用性。
 
 网易云封面搜索使用固定到提交 `8626b8fe628144e051dd9e07180850d253c808f2` 的原生 Swift
 [`NeteaseCloudMusicAPI-Swift`](https://github.com/Lincb522/NeteaseCloudMusicApi-Swift)，仅调用匿名歌曲搜索并读取专辑封面，不使用登录、Cookie、播放或解灰接口。
@@ -84,7 +83,7 @@
 
 将此目录作为仓库推送到 GitHub。Actions 中的 **Build iOS 17 IPA** 会：
 
-1. 在 GitHub 托管 Mac 上检出 App 实际固定的 TeslaBLEKeyKit 分支并运行密码学与协议测试；
+1. 在 GitHub 托管 Mac 上对仓库内 vendored 的 TeslaBLEKeyKit 运行密码学与协议测试；
 2. 用 XcodeGen 生成工程，并在 iOS 模拟器运行 App 协议回归测试；
 3. 在带 `xiaote-mac` 标签的自托管 Apple Silicon Mac 上为真实 iPhone 编译 Release，并复用依赖与增量编译缓存；
 4. 编译并嵌入 watchOS 10 配套应用；
