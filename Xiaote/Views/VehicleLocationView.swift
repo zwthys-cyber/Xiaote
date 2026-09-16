@@ -16,9 +16,10 @@ struct VehicleLocationView: View {
             if let coordinate = vehicle.vehicleCoordinate {
                 Map(position: $hasPosition) {
                     Annotation("车辆位置", coordinate: coordinate) {
-                        Image(systemName: "car.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.black)
+                        Image("TeslaIcon-Model3")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 26, height: 26)
                             .padding(10)
                             .background(.white, in: Circle())
                             .overlay(Circle().stroke(Color.black.opacity(0.16), lineWidth: 1))
