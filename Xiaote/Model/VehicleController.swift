@@ -551,7 +551,12 @@ final class VehicleController {
                 try await self.send(action, to: vehicle)
             }
         }
-        if succeeded { await refreshSchedules() }
+        guard succeeded else { return }
+        // Drop the row immediately once the vehicle has confirmed the
+        // deletion; a slow refreshSchedules round-trip would otherwise leave
+        // the schedule visible for seconds and read as "nothing happened".
+        vehicleSchedules.removeAll { $0.id == schedule.id }
+        await refreshSchedules()
     }
 
     func refreshNearbyChargingSites() async {

@@ -56,7 +56,14 @@ struct VehicleSchedulesView: View {
                             Text(timeText(schedule.minutes) + " · " + dayText(schedule.days)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Circle().fill(schedule.enabled ? Color.green : AppTheme.muted).frame(width: 7, height: 7)
+                        if vehicle.executingAction == .charging {
+                            // A delete rides the same BLE command path as a
+                            // charging action; reflect its in-flight state in
+                            // the row so the tap visibly did something.
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Circle().fill(schedule.enabled ? Color.green : AppTheme.muted).frame(width: 7, height: 7)
+                        }
                     }
                     .swipeActions {
                         Button("删除", role: .destructive) { Task { await vehicle.removeSchedule(schedule) } }
