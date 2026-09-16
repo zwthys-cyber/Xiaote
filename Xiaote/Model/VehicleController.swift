@@ -4,6 +4,7 @@ import Security
 import CryptoKit
 import LocalAuthentication
 import UserNotifications
+import CoreLocation
 @preconcurrency import TeslaBLEKeyKit
 
 @MainActor
@@ -180,6 +181,7 @@ final class VehicleController {
     var scheduleLocationName: String?
     private var scheduleLatitude: Float?
     private var scheduleLongitude: Float?
+    var vehicleLocationUpdatedAt: Date?
     var stateFreshness = VehicleStateFreshness()
     var stateRefreshMessage: String?
     var commandProgress: String?
@@ -455,6 +457,29 @@ final class VehicleController {
         return updated >= date
     }
 
+    /// GPS fix of the vehicle from the local BLE session; nil until a
+    /// location-capable read completes. Requires a completed VIN identity.
+    var vehicleCoordinate: CLLocationCoordinate2D? {
+        guard let scheduleLatitude, let scheduleLongitude else { return nil }
+        return CLLocationCoordinate2D(latitude: Double(scheduleLatitude), longitude: Double(scheduleLongitude))
+    }
+
+    func refreshVehicleLocation() async {
+        guard !isRefreshingVehicleState, !isRefreshingMediaState,
+              let tesla = try? await ensureModernSession() else {
+            presentError("需要先补全车辆身份并保持连接。")
+            return
+        }
+        isRefreshingVehicleState = true
+        defer { isRefreshingVehicleState = false }
+        if let location = await requestVehicleData(from: tesla, configure: { $0.getLocationState = CarServer_GetLocationState() }), location.hasLocationState {
+            let state = location.locationState
+            if state.optionalLatitude != nil { scheduleLatitude = state.latitude; vehicleLocationUpdatedAt = Date() }
+            if state.optionalLongitude != nil { scheduleLongitude = state.longitude }
+            if state.optionalLocationName != nil { scheduleLocationName = state.locationName }
+        }
+    }
+
     func refreshSchedules() async {
         guard !isRefreshingVehicleState, !isRefreshingMediaState,
               let tesla = try? await ensureModernSession() else { return }
@@ -462,7 +487,7 @@ final class VehicleController {
         defer { isRefreshingVehicleState = false }
         if let location = await requestVehicleData(from: tesla, configure: { $0.getLocationState = CarServer_GetLocationState() }), location.hasLocationState {
             let state = location.locationState
-            if state.optionalLatitude != nil { scheduleLatitude = state.latitude }
+            if state.optionalLatitude != nil { scheduleLatitude = state.latitude; vehicleLocationUpdatedAt = Date() }
             if state.optionalLongitude != nil { scheduleLongitude = state.longitude }
             if state.optionalLocationName != nil { scheduleLocationName = state.locationName }
         }
