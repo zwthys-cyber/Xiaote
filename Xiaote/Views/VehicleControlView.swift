@@ -925,7 +925,7 @@ private struct MusicPanelView: View {
                 if vehicle.executingAction != nil && (label == "暂停" || label == "继续播放" || label == "上一首" || label == "下一首" || label == "切换收藏") {
                     ProgressView().controlSize(.mini).tint(emphasized ? .black : .white)
                 } else if let asset {
-                    Image(asset).resizable().scaledToFit().frame(width: large ? 24 : 20, height: large ? 24 : 20)
+                    Image(asset).resizable().scaledToFit().frame(width: large ? 18 : 16, height: large ? 18 : 16)
                 } else {
                     Image(systemName: symbol).font(.system(size: emphasized ? 22 : (large ? 18 : 16), weight: .semibold))
                 }
