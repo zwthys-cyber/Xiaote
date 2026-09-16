@@ -65,7 +65,7 @@ final class LegacyVCSECClient: @unchecked Sendable {
         throw ClientError.timeout
     }
 
-    func startSession() async throws {
+    func startSession(passiveResponder: Bool = false) async throws {
         // The native phone-key bootstrap uses GET_EPHEMERAL_PUBLIC_KEY (3).
         // GET_SESSION_DATA (4) exists in some archived schemas but is not
         // answered consistently by production vehicles.
@@ -101,6 +101,14 @@ final class LegacyVCSECClient: @unchecked Sendable {
         // UnsignedMessage.authenticationResponse(level NONE) is an explicitly
         // present, empty nested message: field 3, length 0.
         try await sendSigned(unsignedMessage: Self.messageField(3, Data()))
+        // The passive key must install its handle-challenge listener promptly;
+        // the acknowledgement is optional and can take the entire wake window.
+        if passiveResponder {
+            for challenge in deferredChallenges {
+                try await respondToAuthenticationRequest(in: challenge)
+            }
+            return
+        }
         if let confirmation = try? await nextMessage(seconds: 3),
            Self.isAuthenticationRequest(confirmation) {
             // A handle pull can race the bootstrap acknowledgement.
@@ -108,7 +116,7 @@ final class LegacyVCSECClient: @unchecked Sendable {
         }
 
         for challenge in deferredChallenges {
-            try? await respondToAuthenticationRequest(in: challenge)
+            try await respondToAuthenticationRequest(in: challenge)
         }
     }
 
@@ -189,6 +197,13 @@ final class LegacyVCSECClient: @unchecked Sendable {
     func stopPassiveAuthenticationResponder() {
         passiveAuthenticationTask?.cancel()
         passiveAuthenticationTask = nil
+    }
+
+    /// Discard a failed reader while keeping the restorable BLE connection.
+    func releasePassiveResponder() async {
+        stopPassiveAuthenticationResponder()
+        await inbox.close()
+        await connection.resetReceiveMessages()
     }
 
     private func sendSigned(
