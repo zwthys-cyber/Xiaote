@@ -91,6 +91,7 @@ final class VehicleController {
     private var vehicleBeforeAdding: String?
     private var passiveDisconnectObserver: NSObjectProtocol?
     private var passiveReadyObserver: NSObjectProtocol?
+    private var passiveValueObserver: NSObjectProtocol?
     private var intentionalDisconnect = false
     private var passiveLifecycle = PassiveKeyLifecycle(enabled: false)
 
@@ -277,6 +278,27 @@ final class VehicleController {
                 AppDiagnostics.shared.record("ble.passive.proximity.ready")
                 await self.restoreDedicatedPhoneKeyConnection(
                     on: ready,
+                    generation: self.passiveLifecycle.generation
+                )
+            }
+        }
+        // A connected vehicle may send a new handle challenge after a
+        // background session bootstrap failed. Treat that RX event as another
+        // recovery opportunity instead of waiting for a disconnect or launch.
+        passiveValueObserver = NotificationCenter.default.addObserver(
+            forName: BLEConnection.didReceiveValueNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      let link = notification.object as? BLEConnection,
+                      link === self.passiveConnection,
+                      self.passiveEntryEnabled, !self.passiveKeyOnline,
+                      self.passiveLifecycle.activeOperation == nil else { return }
+                AppDiagnostics.shared.record("ble.passive.proximity.value")
+                await self.restoreDedicatedPhoneKeyConnection(
+                    on: link,
                     generation: self.passiveLifecycle.generation
                 )
             }
@@ -1575,7 +1597,7 @@ final class VehicleController {
             AppDiagnostics.shared.record("ble.passive.lifecycle.connected.\(connectionMilliseconds)ms")
             AppDiagnostics.shared.record("ble.passive.lifecycle.session.g\(generation)")
             let client = LegacyVCSECClient(connection: link, privateKey: key)
-            try await client.startSession()
+            try await client.startSession(passiveResponder: true)
             guard isCurrentPassiveOperation(generation, link: link, vehicleID: selectedVehicleID),
                   passiveLifecycle.markListening(for: generation) else {
                 client.close()
@@ -1651,7 +1673,7 @@ final class VehicleController {
             AppDiagnostics.shared.record("ble.passive.lifecycle.session.g\(expectedGeneration)")
             let key = try keyStore.load(for: vehicleID)
             let client = LegacyVCSECClient(connection: link, privateKey: key)
-            try await client.startSession()
+            try await client.startSession(passiveResponder: true)
             guard isCurrentPassiveOperation(expectedGeneration, link: link, vehicleID: selectedVehicleID),
                   passiveLifecycle.markListening(for: expectedGeneration) else {
                 client.close()

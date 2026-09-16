@@ -1,0 +1,2 @@
+# Preserve the exact audited upstream snapshot, including its original whitespace.
+Vendor/TeslaBLEKeyKit/** whitespace=-blank-at-eol

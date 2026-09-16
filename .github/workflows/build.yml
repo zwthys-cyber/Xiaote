@@ -49,15 +49,8 @@ jobs:
       - name: Checkout app
         uses: actions/checkout@v6
 
-      - name: Checkout pinned app TeslaBLEKeyKit fork
-        uses: actions/checkout@v6
-        with:
-          repository: zwthys-cyber/TeslaBLEKeyKit
-          ref: d5da62c003ac6e2e0d8695f910957dd5708c82d7
-          path: .ci/TeslaBLEKeyKit
-
       - name: Run protocol and crypto tests
-        working-directory: .ci/TeslaBLEKeyKit
+        working-directory: Vendor/TeslaBLEKeyKit
         run: swift test
 
   build-app:
