@@ -326,6 +326,7 @@ struct VehicleControlView: View {
                 featureLink("诊断", "waveform.path.ecg", VehicleDiagnosticsView())
                 featureLink("场景", "sparkles", AutomationScenesView())
                 featureLink("预约", "calendar.badge.clock", VehicleSchedulesView())
+                featureLink("车辆位置", "map.fill", VehicleLocationView())
                 featureLink("充电站", "bolt.car.fill", NearbyChargingSitesView())
             }
         }

@@ -28,6 +28,7 @@ targets:
         NSBluetoothAlwaysUsageDescription: 用于在本地连接您的 Tesla 并执行钥匙操作。
         NSFaceIDUsageDescription: 用于按您选择的保护级别确认车辆控制操作。
         NSCameraUsageDescription: 用于识别车机屏幕或车门铭牌上的 VIN。
+        NSLocationWhenInUseUsageDescription: 用于显示您与车辆之间的距离，帮助找到车辆；拒绝后仍可查看车辆位置。
         UIBackgroundModes: [bluetooth-central]
         CFBundleURLTypes:
           - CFBundleURLName: com.local.teslablekey.oauth
