@@ -16,4 +16,5 @@ enum AppStorageKeys {
     static let hiddenHomeCardsPrefix = "hiddenHomeCards."
     static let automationScenesPrefix = "automationScenes."
     static let alertPreferencesPrefix = "alertPreferences."
+    static let passiveKeyPairingNoticeSent = "passiveKeyPairingNoticeSent"
 }

@@ -3,6 +3,7 @@ import Observation
 import Security
 import CryptoKit
 import LocalAuthentication
+import UserNotifications
 @preconcurrency import TeslaBLEKeyKit
 
 @MainActor
@@ -203,6 +204,7 @@ final class VehicleController {
     private var appIsBackgrounded = false
     private var commandConnectionPausedForBackground = false
     private var authorizedSceneID: UUID?
+    private var passiveKeyBluetoothUnavailable = false
 
     var displayVehicleName: String {
         if let customVehicleName, !customVehicleName.isEmpty { return customVehicleName }
@@ -754,6 +756,12 @@ final class VehicleController {
         // challenge. Releasing it leaves the vehicle's limited BLE capacity
         // to the restorable native Phone Key link, which is the only session
         // that must survive in the background.
+        if managesPassiveKey, passiveEntryEnabled, isPaired, passiveKeyBluetoothUnavailable {
+            // The last passive attempt failed because Bluetooth was off or
+            // unauthorized. Nothing is system-managed in that state, so warn
+            // before the user walks away expecting keyless entry to work.
+            notifyPassiveKeyBluetoothUnavailable()
+        }
         guard managesPassiveKey, passiveEntryEnabled, connection != nil else { return }
         commandConnectionPausedForBackground = true
         invalidateCommands()
@@ -763,6 +771,40 @@ final class VehicleController {
         legacyClient = nil
         phase = .idle
         AppDiagnostics.shared.record("ble.command.paused.background")
+    }
+
+    /// One-time pairing notice. Force-quitting the app or rebooting the phone
+    /// silently disables passive entry until the app is opened again; tell the
+    /// owner once, right after pairing, instead of after a failed unlock.
+    private func presentPairingNoticeIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: AppStorageKeys.passiveKeyPairingNoticeSent) else { return }
+        defaults.set(true, forKey: AppStorageKeys.passiveKeyPairingNoticeSent)
+        Task {
+            let center = UNUserNotificationCenter.current()
+            try? await center.requestAuthorization(options: [.alert, .sound])
+            let content = UNMutableNotificationContent()
+            content.title = "蓝牙车钥匙已添加"
+            content.body = "请保持小特在后台运行，不要从后台划掉；重启手机后请先打开一次小特，再靠近车辆。"
+            let request = UNNotificationRequest(
+                identifier: "passive-key-pairing-notice",
+                content: content,
+                trigger: nil
+            )
+            try? await center.add(request)
+        }
+    }
+
+    private func notifyPassiveKeyBluetoothUnavailable() {
+        let content = UNMutableNotificationContent()
+        content.title = "被动钥匙不可用"
+        content.body = "iPhone 蓝牙未开启，无法无感解锁。返回车辆前请打开蓝牙，或使用实体钥匙卡。"
+        let request = UNNotificationRequest(
+            identifier: "passive-key-bluetooth-unavailable",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     func presentUserError(_ message: String) { presentError(message) }
@@ -1584,6 +1626,7 @@ final class VehicleController {
             startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
+            passiveKeyBluetoothUnavailable = false
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
             AppDiagnostics.shared.record("ble.passive.lifecycle.ready.\(totalMilliseconds)ms")
             AppDiagnostics.shared.record("ble.passive.lifecycle.listening.g\(generation)")
@@ -1592,6 +1635,7 @@ final class VehicleController {
             // connection and wake the app when the owner returns to the car.
             if passiveLifecycle.owns(generation) {
                 _ = passiveLifecycle.markWaiting(for: generation)
+                passiveKeyBluetoothUnavailable = Self.isBluetoothEnvironmentError(error)
                 AppDiagnostics.shared.record("ble.passive.lifecycle.waiting.g\(generation)")
             }
             throw error
@@ -1660,6 +1704,7 @@ final class VehicleController {
             startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
+            passiveKeyBluetoothUnavailable = false
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
             AppDiagnostics.shared.record("ble.passive.restore.total.\(totalMilliseconds)ms")
             AppDiagnostics.shared.record("ble.passive.restore.ready.g\(expectedGeneration)")
@@ -1669,6 +1714,7 @@ final class VehicleController {
                 return
             }
             _ = passiveLifecycle.markWaiting(for: expectedGeneration)
+            passiveKeyBluetoothUnavailable = Self.isBluetoothEnvironmentError(error)
             AppDiagnostics.shared.record("ble.passive.restore.pending.g\(expectedGeneration)")
             // Keep this CBCentralManager alive. Replacing it with another
             // manager using the same restoration identifier can strand iOS
@@ -2034,6 +2080,7 @@ final class VehicleController {
         if !pairedVehicleIDs.contains(vehicleID) { pairedVehicleIDs.append(vehicleID) }
         UserDefaults.standard.set(pairedVehicleIDs, forKey: AppStorageKeys.pairedVehicleIDs)
         vehicleBeforeAdding = nil
+        presentPairingNoticeIfNeeded()
     }
 
     private func restoreVehicleAfterFailedAddition() async {
@@ -2099,6 +2146,17 @@ final class VehicleController {
 
     private static func describe(_ error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    }
+
+    /// Passive entry has no system-managed recovery while Bluetooth is off or
+    /// unauthorized; every other failure leaves a pending connection that iOS
+    /// can complete in the background.
+    private static func isBluetoothEnvironmentError(_ error: Error) -> Bool {
+        guard let teslaError = error as? TeslaError else { return false }
+        switch teslaError {
+        case .bluetoothPoweredOff, .bluetoothUnauthorized: return true
+        default: return false
+        }
     }
 
     static func modelName(fromVIN vin: String) -> String? {
@@ -2174,7 +2232,6 @@ final class VehicleController {
             }
         }
     }
-
 
 }
 
