@@ -122,6 +122,11 @@ jobs:
               exit 0
             fi
             echo "Swift package resolution attempt $attempt failed; retrying"
+            # A mirror left by the deleted fork can hold commits without their
+            # trees, and the runner proxy can drop connections mid-fetch. Clear
+            # both caches so the next attempt clones cleanly.
+            rm -rf "$RUNNER_TOOL_CACHE/xiaote/SourcePackages"
+            rm -rf ~/Library/Caches/org.swift.swiftpm/repositories/TeslaBLEKeyKit-*
           done
           exit 1
 
