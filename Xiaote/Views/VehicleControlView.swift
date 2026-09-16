@@ -28,6 +28,7 @@ struct VehicleControlView: View {
     @SceneStorage("controlRailHasAppeared") private var railHasAppeared = false
     @State private var revealRail = false
     @State private var animateRailEntrance = false
+    @State private var showingMusicPanel = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -402,6 +403,11 @@ struct VehicleControlView: View {
         }
         .padding(12)
         .background(AppTheme.dashboardCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onLongPressGesture { showingMusicPanel = true }
+        .sheet(isPresented: $showingMusicPanel) {
+            MusicPanelView()
+                .presentationDetents([.medium, .large])
+        }
         .accessibilityElement(children: .contain)
     }
 
@@ -789,5 +795,127 @@ private extension View {
         opacity(skip || active ? 1 : 0)
             .offset(y: skip || active ? 0 : 4)
             .animation(skip ? nil : AppMotion.state.delay(Double(index) * 0.04), value: active)
+    }
+}
+
+/// Full-size music panel opened by long-pressing the home now-playing card.
+/// Mirrors the Tesla-UI-prototype dock music window: #1d2128 panel, large
+/// cover, favorite toggle and oversized transport buttons. The seek bar and
+/// up-next queue stay absent because the vehicle protocol exposes neither
+/// playback progress nor a queue.
+private struct MusicPanelView: View {
+    @Environment(VehicleController.self) private var vehicle
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 18) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("音乐").font(.title3.weight(.semibold))
+                    Text("当前播放").font(.caption).foregroundStyle(AppTheme.muted)
+                }
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppTheme.muted)
+                }
+                .accessibilityLabel("关闭")
+            }
+
+            AsyncImage(url: vehicle.mediaArtworkURL) { phase in
+                if case let .success(image) = phase {
+                    image.resizable().scaledToFill()
+                } else {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 56, weight: .semibold))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(AppTheme.raised)
+                }
+            }
+            .frame(width: 200, height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .accessibilityHidden(true)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(vehicle.mediaTitle ?? "正在播放")
+                        .font(.title3.weight(.semibold)).lineLimit(1)
+                    Text(vehicle.mediaArtist ?? vehicle.mediaSource ?? "车载媒体")
+                        .font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(1)
+                }
+                Spacer()
+                panelButton("star.fill", label: "切换收藏") {
+                    await vehicle.toggleMediaFavorite()
+                }
+                .foregroundStyle(.pink.opacity(0.85))
+            }
+
+            panelVolumeBar
+
+            HStack(spacing: 42) {
+                panelButton("backward.end.fill", label: "上一首", large: true) {
+                    await vehicle.previousMediaTrack()
+                }
+                panelButton(vehicle.mediaPlaybackStatus == "播放中" ? "pause.fill" : "play.fill",
+                            label: vehicle.mediaPlaybackStatus == "播放中" ? "暂停" : "继续播放",
+                            emphasized: true) {
+                    await vehicle.toggleMediaPlayback()
+                }
+                panelButton("forward.end.fill", label: "下一首", large: true) {
+                    await vehicle.nextMediaTrack()
+                }
+            }
+            .padding(.top, 4)
+
+            Spacer(minLength: 0)
+        }
+        .padding(24)
+        .background(AppTheme.musicPanel, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .presentationBackground(Color.black.opacity(0.001))
+    }
+
+    @ViewBuilder
+    private var panelVolumeBar: some View {
+        if let max = vehicle.mediaVolumeMax, max > 0 {
+            let volume = vehicle.mediaVolume.map { max(0, min($0 / max, 1)) } ?? 0
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.fill").font(.caption).foregroundStyle(AppTheme.muted)
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(Color.white).frame(width: geometry.size.width * CGFloat(volume), height: 4)
+                    }
+                }
+                .frame(height: 4)
+                Text("\(Int((volume * 100).rounded()))%")
+                    .font(.caption.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(AppTheme.muted)
+            }
+        }
+    }
+
+    private func panelButton(
+        _ symbol: String,
+        label: String,
+        large: Bool = false,
+        emphasized: Bool = false,
+        operation: @escaping () async -> Void
+    ) -> some View {
+        Button { Task { await operation() } } label: {
+            Group {
+                if vehicle.executingAction != nil && (label == "暂停" || label == "继续播放" || label == "上一首" || label == "下一首" || label == "切换收藏") {
+                    ProgressView().controlSize(.mini).tint(emphasized ? .black : .white)
+                } else {
+                    Image(systemName: symbol).font(.system(size: emphasized ? 22 : (large ? 18 : 16), weight: .semibold))
+                }
+            }
+            .frame(width: emphasized ? 64 : (large ? 52 : 44), height: emphasized ? 64 : (large ? 52 : 44))
+            .background(emphasized ? Color.white : Color.white.opacity(0.07), in: Circle())
+            .foregroundStyle(emphasized ? .black : .white)
+        }
+        .buttonStyle(UtilityPressStyle())
+        .disabled(vehicle.executingAction != nil)
+        .accessibilityLabel(label)
     }
 }

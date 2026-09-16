@@ -8,6 +8,8 @@ enum AppTheme {
     static let muted = Color.white.opacity(0.55)
     /// Card background matching the Tesla-UI-prototype dashboard cards.
     static let dashboardCard = Color(red: 22 / 255, green: 22 / 255, blue: 22 / 255)
+    /// Background of the Tesla-UI-prototype dock music window (#1d2128).
+    static let musicPanel = Color(red: 29 / 255, green: 33 / 255, blue: 40 / 255)
 }
 
 enum AppMotion {
