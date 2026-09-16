@@ -115,6 +115,11 @@ struct VehicleControlView: View {
         .fullScreenCover(isPresented: $showingTeslaAccount) {
             TeslaAccountView().environment(fleetAccount)
         }
+        .fullScreenCover(isPresented: $showingVehicleLocation) {
+            NavigationStack { VehicleLocationView() }
+                .environment(vehicle)
+                .preferredColorScheme(.dark)
+        }
     }
 
     private var fixedHeader: some View {
@@ -416,11 +421,6 @@ struct VehicleControlView: View {
         .sheet(isPresented: $showingMusicPanel) {
             MusicPanelView()
                 .presentationDetents([.medium, .large])
-        }
-        .fullScreenCover(isPresented: $showingVehicleLocation) {
-            NavigationStack { VehicleLocationView() }
-                .environment(vehicle)
-                .preferredColorScheme(.dark)
         }
         .accessibilityElement(children: .contain)
     }
