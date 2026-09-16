@@ -77,16 +77,14 @@ final class LegacyVCSECClient: @unchecked Sendable {
         var deferredChallenges: [Data] = []
         for _ in 0 ..< 5 {
             let response = try await nextMessage(seconds: 2)
+            // A VCSEC reply can contain session data and a handle challenge
+            // together. Preserve the challenge before ending the bootstrap.
+            if Self.isAuthenticationRequest(response) {
+                deferredChallenges.append(response)
+            }
             if let candidate = Self.firstLengthDelimitedField(2, in: response) {
                 sessionBytes = candidate
                 break
-            }
-            // Pulling a handle can wake a sleeping vehicle and send its
-            // AuthenticationRequest while this bootstrap is still reading.
-            // Do not consume and discard it: answer it once the shared key
-            // exists, before the regular responder takes over the stream.
-            if Self.isAuthenticationRequest(response) {
-                deferredChallenges.append(response)
             }
         }
         guard let sessionBytes,
