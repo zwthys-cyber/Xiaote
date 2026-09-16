@@ -378,10 +378,12 @@ struct VehicleControlView: View {
             }
             volumeBar
             HStack(spacing: 6) {
-                compactMediaButton("speaker.minus.fill", label: "降低音量", action: .mediaVolume) {
+                compactMediaButton("speaker.minus.fill", label: "降低音量", action: .mediaVolume,
+                                   asset: "TeslaIcon-SpeakerLow") {
                     await vehicle.adjustMediaVolume(delta: -1)
                 }
-                compactMediaButton("backward.end.fill", label: "上一首", action: .mediaPrevious) {
+                compactMediaButton("backward.end.fill", label: "上一首", action: .mediaPrevious,
+                                   asset: "TeslaIcon-Previous") {
                     await vehicle.previousMediaTrack()
                 }
                 compactMediaButton(vehicle.mediaPlaybackStatus == "播放中" ? "pause.fill" : "play.fill",
@@ -389,10 +391,12 @@ struct VehicleControlView: View {
                                    action: .mediaPlayPause, emphasized: true) {
                     await vehicle.toggleMediaPlayback()
                 }
-                compactMediaButton("forward.end.fill", label: "下一首", action: .mediaNext) {
+                compactMediaButton("forward.end.fill", label: "下一首", action: .mediaNext,
+                                   asset: "TeslaIcon-Next") {
                     await vehicle.nextMediaTrack()
                 }
-                compactMediaButton("speaker.plus.fill", label: "提高音量", action: .mediaVolume) {
+                compactMediaButton("speaker.plus.fill", label: "提高音量", action: .mediaVolume,
+                                   asset: "TeslaIcon-SpeakerHigh") {
                     await vehicle.adjustMediaVolume(delta: 1)
                 }
                 compactMediaButton("star.fill", label: "切换收藏", action: .mediaFavorite) {
@@ -435,12 +439,15 @@ struct VehicleControlView: View {
         label: String,
         action: VehicleController.VehicleAction,
         emphasized: Bool = false,
+        asset: String? = nil,
         operation: @escaping () async -> Void
     ) -> some View {
         Button { submit(action) { await operation() } } label: {
             Group {
                 if vehicle.executingAction == action { ProgressView().controlSize(.mini).tint(emphasized ? .black : .white) }
-                else { Image(systemName: symbol).font(.caption.weight(.semibold)) }
+                else if let asset {
+                    Image(asset).resizable().scaledToFit().frame(width: 17, height: 17)
+                } else { Image(systemName: symbol).font(.caption.weight(.semibold)) }
             }
             .frame(width: 36, height: 36)
             .background(emphasized ? Color.white : AppTheme.raised, in: Circle())
@@ -854,7 +861,7 @@ private struct MusicPanelView: View {
             panelVolumeBar
 
             HStack(spacing: 42) {
-                panelButton("backward.end.fill", label: "上一首", large: true) {
+                panelButton("backward.end.fill", label: "上一首", large: true, asset: "TeslaIcon-Previous") {
                     await vehicle.previousMediaTrack()
                 }
                 panelButton(vehicle.mediaPlaybackStatus == "播放中" ? "pause.fill" : "play.fill",
@@ -862,7 +869,7 @@ private struct MusicPanelView: View {
                             emphasized: true) {
                     await vehicle.toggleMediaPlayback()
                 }
-                panelButton("forward.end.fill", label: "下一首", large: true) {
+                panelButton("forward.end.fill", label: "下一首", large: true, asset: "TeslaIcon-Next") {
                     await vehicle.nextMediaTrack()
                 }
             }
@@ -900,12 +907,15 @@ private struct MusicPanelView: View {
         label: String,
         large: Bool = false,
         emphasized: Bool = false,
+        asset: String? = nil,
         operation: @escaping () async -> Void
     ) -> some View {
         Button { Task { await operation() } } label: {
             Group {
                 if vehicle.executingAction != nil && (label == "暂停" || label == "继续播放" || label == "上一首" || label == "下一首" || label == "切换收藏") {
                     ProgressView().controlSize(.mini).tint(emphasized ? .black : .white)
+                } else if let asset {
+                    Image(asset).resizable().scaledToFit().frame(width: large ? 24 : 20, height: large ? 24 : 20)
                 } else {
                     Image(systemName: symbol).font(.system(size: emphasized ? 22 : (large ? 18 : 16), weight: .semibold))
                 }
