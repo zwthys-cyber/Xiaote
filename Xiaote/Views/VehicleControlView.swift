@@ -370,6 +370,9 @@ struct VehicleControlView: View {
                         .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(1)
                 }
                 Spacer(minLength: 4)
+                compactMediaButton("speaker.minus.fill", label: "降低音量", action: .mediaVolume) {
+                    await vehicle.adjustMediaVolume(delta: -1)
+                }
                 compactMediaButton("backward.end.fill", label: "上一首", action: .mediaPrevious) {
                     await vehicle.previousMediaTrack()
                 }
@@ -380,6 +383,9 @@ struct VehicleControlView: View {
                 }
                 compactMediaButton("forward.end.fill", label: "下一首", action: .mediaNext) {
                     await vehicle.nextMediaTrack()
+                }
+                compactMediaButton("speaker.plus.fill", label: "提高音量", action: .mediaVolume) {
+                    await vehicle.adjustMediaVolume(delta: 1)
                 }
             }
         }

@@ -50,7 +50,7 @@ final class VehicleController {
     }
     enum VehicleAction: String, CaseIterable, Hashable, Identifiable, Sendable {
         case lock, unlock, frunk, trunk, drive, flash, horn, chargePort, climate, windows
-        case mediaPrevious, mediaPlayPause, mediaNext
+        case mediaPrevious, mediaPlayPause, mediaNext, mediaVolume
         case charging, chargeLimit, chargeCurrent, defrost, steeringHeater, climateMode, bioweapon, overheat, sentry
         var id: String { rawValue }
     }
@@ -1121,6 +1121,12 @@ final class VehicleController {
         if await execute(.mediaNext, name: "切换下一首", operation: {
             try await self.performInfotainment { try await $0.mediaNextTrack() }
         }) { await refreshMediaAfterTrackChange() }
+    }
+
+    func adjustMediaVolume(delta: Int32) async {
+        _ = await execute(.mediaVolume, name: delta > 0 ? "调高音量" : "调低音量", operation: {
+            try await self.performInfotainment { try await $0.mediaAdjustVolume(delta: delta) }
+        })
     }
 
     private func refreshMediaAfterTrackChange() async {
