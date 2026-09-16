@@ -1687,7 +1687,7 @@ final class VehicleController {
             AppDiagnostics.shared.record("ble.passive.lifecycle.connected.\(connectionMilliseconds)ms")
             AppDiagnostics.shared.record("ble.passive.lifecycle.session.g\(generation)")
             let client = LegacyVCSECClient(connection: link, privateKey: key)
-            try await client.startSession()
+            try await client.startSession(passiveResponder: true)
             guard isCurrentPassiveOperation(generation, link: link, vehicleID: selectedVehicleID),
                   passiveLifecycle.markListening(for: generation) else {
                 client.close()
@@ -1728,6 +1728,7 @@ final class VehicleController {
                 // leaving passive entry dead in the background until the app
                 // is reopened. The recovery connect() below subscribes to a
                 // fresh receive stream once the ended one is discarded.
+                await client.releasePassiveResponder()
                 await self.restoreDedicatedPhoneKeyConnection(on: link, generation: generation)
             }
         }
@@ -1769,7 +1770,7 @@ final class VehicleController {
             AppDiagnostics.shared.record("ble.passive.lifecycle.session.g\(expectedGeneration)")
             let key = try keyStore.load(for: vehicleID)
             let client = LegacyVCSECClient(connection: link, privateKey: key)
-            try await client.startSession()
+            try await client.startSession(passiveResponder: true)
             guard isCurrentPassiveOperation(expectedGeneration, link: link, vehicleID: selectedVehicleID),
                   passiveLifecycle.markListening(for: expectedGeneration) else {
                 client.close()
@@ -2119,8 +2120,8 @@ final class VehicleController {
             do {
                 try client.restoreVCSECSession(from: cached)
                 try await activatePhoneKeySession(client)
-                persistModernSessionIfNeeded()
                 tesla = client
+                persistModernSessionIfNeeded()
                 AppDiagnostics.shared.record("ble.session.restored")
                 return
             } catch {
@@ -2133,8 +2134,8 @@ final class VehicleController {
         // phone key online on a sleeping vehicle. Send an authenticated wake
         // before exposing the connection as ready to the UI.
         try await activatePhoneKeySession(client)
-        persistModernSessionIfNeeded()
         tesla = client
+        persistModernSessionIfNeeded()
     }
 
     /// Persists the live VCSEC session (with its current counter) so a later
