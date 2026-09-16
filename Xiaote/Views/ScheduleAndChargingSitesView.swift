@@ -38,14 +38,6 @@ struct VehicleSchedulesView: View {
                         }
                         Spacer()
                         Circle().fill(schedule.enabled ? Color.green : AppTheme.muted).frame(width: 7, height: 7)
-                        Menu {
-                            Button("删除", role: .destructive) { Task { await vehicle.removeSchedule(schedule) } }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .foregroundStyle(AppTheme.muted)
-                                .frame(width: 32, height: 38)
-                                .contentShape(Rectangle())
-                        }
                     }
                     .swipeActions {
                         Button("删除", role: .destructive) { Task { await vehicle.removeSchedule(schedule) } }
