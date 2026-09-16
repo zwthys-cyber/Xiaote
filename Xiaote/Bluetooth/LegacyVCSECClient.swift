@@ -181,6 +181,14 @@ final class LegacyVCSECClient: @unchecked Sendable {
         passiveAuthenticationTask = nil
     }
 
+    /// A failed challenge listener needs a fresh reader, not a forced BLE
+    /// disconnect. The restorable connection remains available to recover.
+    func releasePassiveResponder() async {
+        stopPassiveAuthenticationResponder()
+        await inbox.close()
+        await connection.resetReceiveMessages()
+    }
+
     private func sendSigned(
         unsignedMessage: Data,
         authenticatedData: Data = Data(),

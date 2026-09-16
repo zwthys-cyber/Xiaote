@@ -1638,9 +1638,9 @@ final class VehicleController {
                 self.passiveKeyOnline = false
                 let generation = self.passiveLifecycle.interrupt()
                 AppDiagnostics.shared.record("ble.passive.responder.recovering")
-                // Keep the restorable central object, but close its ended
-                // stream before establishing a new receive subscription.
-                client.close()
+                // A stopped reader must not tear down a healthy physical BLE
+                // link or withdraw CoreBluetooth's pending reconnect request.
+                await client.releasePassiveResponder()
                 await self.restoreDedicatedPhoneKeyConnection(on: link, generation: generation)
             }
         }
