@@ -10,12 +10,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  # The build cache belongs to one physical Mac, so never let two app builds
-  # modify it at the same time.
-  group: xiaote-mac
-  cancel-in-progress: true
-
 jobs:
   test-backend:
     name: Fleet API backend tests
@@ -55,17 +49,17 @@ jobs:
 
   build-app:
     name: Build unsigned TrollStore IPA
-    # Never execute pull-request code on a persistent personal Mac.
     if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, macOS, ARM64, xiaote-mac]
+    runs-on: macos-26
+    concurrency:
+      # Latest push wins; a superseded app build only burns minutes.
+      group: xiaote-app-build
+      cancel-in-progress: true
     timeout-minutes: 45
     permissions:
       contents: write
     env:
-      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
-      GIT_CONFIG_COUNT: "1"
-      GIT_CONFIG_KEY_0: http.version
-      GIT_CONFIG_VALUE_0: HTTP/1.1
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -74,27 +68,12 @@ jobs:
         env:
           XCODEGEN_VERSION: "2.46.0"
         run: |
-          if command -v xcodegen >/dev/null && \
-             xcodegen --version | grep -q "$XCODEGEN_VERSION"; then
-            echo "Using installed XcodeGen $XCODEGEN_VERSION"
-            exit 0
-          fi
-          tool_dir="$RUNNER_TOOL_CACHE/xiaote/xcodegen/$XCODEGEN_VERSION"
-          if [ ! -x "$tool_dir/xcodegen/bin/xcodegen" ]; then
-            mkdir -p "$tool_dir"
-            curl --fail --location --silent --show-error \
-              --retry 5 --retry-all-errors --http1.1 \
-              "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip" \
-              --output "$RUNNER_TEMP/xcodegen.zip"
-            unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$tool_dir"
-          fi
-          echo "$tool_dir/xcodegen/bin" >> "$GITHUB_PATH"
-
-      - name: Prepare persistent build caches
-        run: |
-          mkdir -p \
-            "$RUNNER_TOOL_CACHE/xiaote/SourcePackages" \
-            "$RUNNER_TOOL_CACHE/xiaote/DerivedData"
+          curl --fail --location --silent --show-error \
+            --retry 5 --retry-all-errors \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip" \
+            --output "$RUNNER_TEMP/xcodegen.zip"
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen"
+          echo "$RUNNER_TEMP/xcodegen/xcodegen/bin" >> "$GITHUB_PATH"
 
       - name: Verify Mac toolchain
         run: |
@@ -111,14 +90,14 @@ jobs:
             if xcodebuild -resolvePackageDependencies \
               -project Xiaote.xcodeproj \
               -scheme Xiaote \
-              -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages"; then
+              -clonedSourcePackagesDirPath SourcePackages; then
               exit 0
             fi
             echo "Swift package resolution attempt $attempt failed; retrying"
             # A mirror left by the deleted fork can hold commits without their
             # trees, and the runner proxy can drop connections mid-fetch. Clear
             # both caches so the next attempt clones cleanly.
-            rm -rf "$RUNNER_TOOL_CACHE/xiaote/SourcePackages"
+            rm -rf SourcePackages
             rm -rf ~/Library/Caches/org.swift.swiftpm/repositories/TeslaBLEKeyKit-*
           done
           exit 1
@@ -138,8 +117,8 @@ jobs:
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
             -destination "platform=iOS Simulator,id=$UI_PHONE_ID" \
-            -derivedDataPath "$RUNNER_TOOL_CACHE/xiaote/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
             -resultBundlePath TestResults.xcresult \
             -parallel-testing-enabled NO
 
@@ -151,8 +130,8 @@ jobs:
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
             -destination "platform=iOS Simulator,id=$UI_SMALL_PHONE_ID" \
-            -derivedDataPath "$RUNNER_TOOL_CACHE/xiaote/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
             -resultBundlePath SmallScreenResults.xcresult \
             -only-testing:XiaoteUITests \
             -parallel-testing-enabled NO
@@ -213,8 +192,8 @@ jobs:
             -scheme Xiaote \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -derivedDataPath "$RUNNER_TOOL_CACHE/xiaote/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages" \
+            -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath SourcePackages \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY='' \
@@ -223,7 +202,7 @@ jobs:
       - name: Package TrollStore IPA
         run: |
           mkdir -p build/Payload
-          cp -R "$RUNNER_TOOL_CACHE/xiaote/DerivedData/Build/Products/Release-iphoneos/Xiaote.app" build/Payload/
+          cp -R DerivedData/Build/Products/Release-iphoneos/Xiaote.app build/Payload/
           ditto -c -k --sequesterRsrc --keepParent build/Payload build/Xiaote-unsigned.ipa
           (cd build && shasum -a 256 Xiaote-unsigned.ipa > Xiaote-unsigned.ipa.sha256)
 
