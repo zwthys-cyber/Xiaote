@@ -29,6 +29,7 @@ struct VehicleControlView: View {
     @State private var revealRail = false
     @State private var animateRailEntrance = false
     @State private var showingMusicPanel = false
+    @State private var showingVehicleLocation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -159,6 +160,9 @@ struct VehicleControlView: View {
                 }
                 Button { showingRenameVehicle = true } label: {
                     Label("自定义车辆名称", systemImage: "pencil")
+                }
+                Button { showingVehicleLocation = true } label: {
+                    Label("车辆位置", systemImage: "map.fill")
                 }
                 Button { showingSecuritySettings = true } label: {
                     Label("Face ID 保护", systemImage: "faceid")
@@ -327,7 +331,6 @@ struct VehicleControlView: View {
                 featureLink("诊断", "waveform.path.ecg", VehicleDiagnosticsView())
                 featureLink("场景", "sparkles", AutomationScenesView())
                 featureLink("预约", "calendar.badge.clock", VehicleSchedulesView())
-                featureLink("车辆位置", "map.fill", VehicleLocationView())
                 featureLink("充电站", "bolt.car.fill", NearbyChargingSitesView())
             }
         }
@@ -411,6 +414,11 @@ struct VehicleControlView: View {
         .sheet(isPresented: $showingMusicPanel) {
             MusicPanelView()
                 .presentationDetents([.medium, .large])
+        }
+        .fullScreenCover(isPresented: $showingVehicleLocation) {
+            NavigationStack { VehicleLocationView() }
+                .environment(vehicle)
+                .preferredColorScheme(.dark)
         }
         .accessibilityElement(children: .contain)
     }
