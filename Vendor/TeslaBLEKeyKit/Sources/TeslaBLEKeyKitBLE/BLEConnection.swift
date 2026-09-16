@@ -148,6 +148,20 @@ public final class BLEConnection: NSObject, VehicleConnector, @unchecked Sendabl
         receiveStreamStorage
     }
 
+    /// Discard a failed VCSEC session's reader without withdrawing the iOS
+    /// connection request or tearing down an otherwise healthy BLE link.
+    public func resetReceiveMessages() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            queue.async {
+                self.receiveContinuation?.finish()
+                self.receiveContinuation = nil
+                self.framer = BLEFramer()
+                self.receiveStreamStorage = AsyncStream { self.receiveContinuation = $0 }
+                continuation.resume()
+            }
+        }
+    }
+
     public func send(_ message: Data) async throws {
         Log.debug("TX \(Log.dataSummary(message)), blockLength=\(blockLength)")
         let framed = try BLEFramer.encode(message)
