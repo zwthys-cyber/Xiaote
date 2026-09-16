@@ -687,7 +687,13 @@ final class VehicleController {
             }
         } catch {
             guard !appIsBackgrounded else { return }
-            presentError(Self.describe(error))
+            // On this path cancellation is the connect timeout cancelling the
+            // wait; the owner can act on that, unlike a generic cancellation.
+            if error is CancellationError {
+                presentError("连接超时，请靠近车辆并重试。")
+            } else {
+                presentError(Self.describe(error))
+            }
         }
     }
 
