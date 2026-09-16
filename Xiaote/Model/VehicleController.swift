@@ -253,6 +253,10 @@ final class VehicleController {
                         AppDiagnostics.shared.record("ble.passive.disconnected.ignored")
                         return
                     }
+                    // Remember the interruption until a later recovery clears it.
+                    // If the app was force-quit or the phone rebooted before that
+                    // recovery, the next launch can tell the owner what happened.
+                    UserDefaults.standard.set(Date(), forKey: AppStorageKeys.passiveKeyInterruptedAt)
                     let generation = self.passiveLifecycle.interrupt()
                     AppDiagnostics.shared.record("ble.passive.lifecycle.interrupted.g\(generation)")
                     await self.restoreDedicatedPhoneKeyConnection(on: disconnected, generation: generation)
@@ -693,6 +697,7 @@ final class VehicleController {
     func refreshAfterReturningToForeground() async {
         appIsBackgrounded = false
         AppDiagnostics.shared.record("app.scene.active")
+        notifyPassiveKeyInterruptionIfNeeded()
         guard isPaired else { return }
         if commandConnectionPausedForBackground, let link = connection {
             commandConnectionPausedForBackground = false
@@ -793,6 +798,30 @@ final class VehicleController {
             )
             try? await center.add(request)
         }
+    }
+
+    /// A passive-key interruption that never recovered (force-quit, phone
+    /// reboot, or system termination while the vehicle was asleep) leaves a
+    /// marker behind. Tell the owner once per day when the app returns,
+    /// instead of leaving them confused at the door.
+    private func notifyPassiveKeyInterruptionIfNeeded() {
+        guard managesPassiveKey, isPaired, passiveEntryEnabled else { return }
+        let defaults = UserDefaults.standard
+        guard let interruptedAt = defaults.object(forKey: AppStorageKeys.passiveKeyInterruptedAt) as? Date,
+              Date().timeIntervalSince(interruptedAt) > 60 else { return }
+        if let lastShownAt = defaults.object(forKey: AppStorageKeys.passiveKeyInterruptNoticeShownAt) as? Date,
+           Date().timeIntervalSince(lastShownAt) < 24 * 3600 { return }
+        defaults.set(Date(), forKey: AppStorageKeys.passiveKeyInterruptNoticeShownAt)
+        defaults.removeObject(forKey: AppStorageKeys.passiveKeyInterruptedAt)
+        let content = UNMutableNotificationContent()
+        content.title = "被动钥匙曾中断"
+        content.body = "请勿从后台划掉小特；重启手机后请先打开一次小特再靠近车辆。"
+        let request = UNNotificationRequest(
+            identifier: "passive-key-interrupted",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func notifyPassiveKeyBluetoothUnavailable() {
@@ -1626,6 +1655,7 @@ final class VehicleController {
             startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
+            UserDefaults.standard.removeObject(forKey: AppStorageKeys.passiveKeyInterruptedAt)
             passiveKeyBluetoothUnavailable = false
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
             AppDiagnostics.shared.record("ble.passive.lifecycle.ready.\(totalMilliseconds)ms")
@@ -1704,6 +1734,7 @@ final class VehicleController {
             startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
+            UserDefaults.standard.removeObject(forKey: AppStorageKeys.passiveKeyInterruptedAt)
             passiveKeyBluetoothUnavailable = false
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
             AppDiagnostics.shared.record("ble.passive.restore.total.\(totalMilliseconds)ms")
