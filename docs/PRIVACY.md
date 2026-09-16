@@ -12,7 +12,7 @@ Tesla OAuth access token 和旋转 refresh token 仅在 `api.txx.app` 服务器�
 
 ## 保存在设备上的数据
 
-- 每辆车独立的 P-256 私钥保存在 iOS Keychain，访问级别为 `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`，不会通过 iCloud 同步或迁移到新设备。
+- 每辆车独立的 P-256 私钥保存在 iOS Keychain，访问级别为 `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`（首次解锁后，锁屏状态下仍可读取，用于响应拉门认证），不会通过 iCloud 同步或迁移到新设备。
 - 已配对车辆标识、车型缓存、被动钥匙开关、可选 VIN，以及最近 20 条命令名称、时间与成功结果保存在本机。
 - 本地诊断记录不包含 VIN、位置、车辆密钥或音乐搜索内容，可随 App 数据一并删除。
 - 自动化场景、主页布局、提醒设置和车辆自定义名称按车辆保存在本机。

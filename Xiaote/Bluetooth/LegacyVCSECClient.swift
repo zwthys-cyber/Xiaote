@@ -70,11 +70,19 @@ final class LegacyVCSECClient: @unchecked Sendable {
         try await connection.send(Self.toVCSECUnsigned(Self.messageField(1, request)))
 
         var sessionBytes: Data?
+        var deferredChallenges: [Data] = []
         for _ in 0 ..< 5 {
             let response = try await nextMessage(seconds: 2)
             if let candidate = Self.firstLengthDelimitedField(2, in: response) {
                 sessionBytes = candidate
                 break
+            }
+            // Pulling a handle can wake a sleeping vehicle and send its
+            // AuthenticationRequest while this bootstrap is still reading.
+            // Do not consume and discard it: answer it once the shared key
+            // exists, before the regular responder takes over the stream.
+            if Self.isAuthenticationRequest(response) {
+                deferredChallenges.append(response)
             }
         }
         guard let sessionBytes,
@@ -89,10 +97,14 @@ final class LegacyVCSECClient: @unchecked Sendable {
         // UnsignedMessage.authenticationResponse(level NONE) is an explicitly
         // present, empty nested message: field 3, length 0.
         try await sendSigned(unsignedMessage: Self.messageField(3, Data()))
-        if let response = try? await nextMessage(seconds: 3) {
-            // A handle pull can race the bootstrap acknowledgement. Answer
-            // its challenge here rather than consuming and discarding it.
-            try await respondToAuthenticationRequest(in: response)
+        if let confirmation = try? await nextMessage(seconds: 3),
+           Self.isAuthenticationRequest(confirmation) {
+            // A handle pull can race the bootstrap acknowledgement.
+            deferredChallenges.append(confirmation)
+        }
+
+        for challenge in deferredChallenges {
+            try? await respondToAuthenticationRequest(in: challenge)
         }
     }
 
@@ -197,10 +209,10 @@ final class LegacyVCSECClient: @unchecked Sendable {
     @discardableResult
     private func respondToAuthenticationRequest(in response: Data) async throws -> Bool {
         // FromVCSECMessage.authenticationRequest = field 3.
-        guard let request = Self.firstLengthDelimitedField(3, in: response),
+        guard Self.isAuthenticationRequest(response),
+              let request = Self.firstLengthDelimitedField(3, in: response),
               let session = Self.firstLengthDelimitedField(2, in: request),
-              let token = Self.firstLengthDelimitedField(1, in: session),
-              token.count == 20 else { return false }
+              let token = Self.firstLengthDelimitedField(1, in: session) else { return false }
 
         // Ignore challenges addressed to another enrolled phone key.
         if let identifier = Self.firstLengthDelimitedField(1, in: request),
@@ -273,6 +285,16 @@ final class LegacyVCSECClient: @unchecked Sendable {
 
     static func vcsecPayload(from message: Data) -> Data {
         firstLengthDelimitedField(10, in: message) ?? message
+    }
+
+    /// Structural check for a FromVCSECMessage.authenticationRequest (field 3)
+    /// carrying the 20-byte session token. Key ID and level matching remain in
+    /// `respondToAuthenticationRequest`, which needs the live session state.
+    static func isAuthenticationRequest(_ response: Data) -> Bool {
+        guard let request = firstLengthDelimitedField(3, in: response),
+              let session = firstLengthDelimitedField(2, in: request),
+              let token = firstLengthDelimitedField(1, in: session) else { return false }
+        return token.count == 20
     }
 
     static func toVCSECUnsigned(_ unsigned: Data) -> Data {
