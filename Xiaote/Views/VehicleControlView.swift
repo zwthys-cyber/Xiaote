@@ -349,28 +349,34 @@ struct VehicleControlView: View {
     }
 
     private var nowPlayingCard: some View {
-        HStack(spacing: 13) {
+        VStack(spacing: 10) {
             HStack(spacing: 13) {
                 AsyncImage(url: vehicle.mediaArtworkURL) { phase in
                     if case let .success(image) = phase {
                         image.resizable().scaledToFill()
                     } else {
                         Image(systemName: "music.note")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 22, weight: .semibold))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(AppTheme.raised)
                     }
                 }
-                .frame(width: 50, height: 50)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .frame(width: 72, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(vehicle.mediaTitle ?? "正在播放")
-                        .font(.subheadline.weight(.semibold)).lineLimit(1)
+                        .font(.headline).lineLimit(1)
                     Text(vehicle.mediaArtist ?? vehicle.mediaSource ?? "车载媒体")
-                        .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(1)
+                        .font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(1)
                 }
                 Spacer(minLength: 4)
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.muted)
+            }
+            volumeBar
+            HStack(spacing: 6) {
                 compactMediaButton("speaker.minus.fill", label: "降低音量", action: .mediaVolume) {
                     await vehicle.adjustMediaVolume(delta: -1)
                 }
@@ -388,12 +394,34 @@ struct VehicleControlView: View {
                 compactMediaButton("speaker.plus.fill", label: "提高音量", action: .mediaVolume) {
                     await vehicle.adjustMediaVolume(delta: 1)
                 }
+                compactMediaButton("star.fill", label: "切换收藏", action: .mediaFavorite) {
+                    await vehicle.toggleMediaFavorite()
+                }
             }
+            .frame(maxWidth: .infinity)
         }
         .padding(12)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(AppTheme.hairline, lineWidth: 0.5))
+        .background(AppTheme.dashboardCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var volumeBar: some View {
+        if let max = vehicle.mediaVolumeMax, max > 0 {
+            let volume = vehicle.mediaVolume.map { max(0, min($0 / max, 1)) } ?? 0
+            HStack(spacing: 8) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(Color.white).frame(width: geometry.size.width * CGFloat(volume), height: 4)
+                    }
+                }
+                .frame(height: 4)
+                Text("\(Int((volume * 100).rounded()))%")
+                    .font(.caption2.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(AppTheme.muted)
+            }
+        }
     }
 
     private func compactMediaButton(

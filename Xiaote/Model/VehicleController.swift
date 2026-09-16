@@ -51,7 +51,7 @@ final class VehicleController {
     }
     enum VehicleAction: String, CaseIterable, Hashable, Identifiable, Sendable {
         case lock, unlock, frunk, trunk, drive, flash, horn, chargePort, climate, windows
-        case mediaPrevious, mediaPlayPause, mediaNext, mediaVolume
+        case mediaPrevious, mediaPlayPause, mediaNext, mediaVolume, mediaFavorite
         case charging, chargeLimit, chargeCurrent, defrost, steeringHeater, climateMode, bioweapon, overheat, sentry
         var id: String { rawValue }
     }
@@ -160,6 +160,8 @@ final class VehicleController {
     var mediaSource: String?
     var mediaPlaybackStatus: String?
     var mediaArtworkURL: URL?
+    var mediaVolume: Float?
+    var mediaVolumeMax: Float?
     var isSentryAvailable = false
     var isSentryOn = false
     var isDefrostOn = false
@@ -1154,6 +1156,12 @@ final class VehicleController {
         })
     }
 
+    func toggleMediaFavorite() async {
+        _ = await execute(.mediaFavorite, name: "切换收藏", operation: {
+            try await self.performInfotainment { try await $0.mediaNextFavorite() }
+        })
+    }
+
     private func refreshMediaAfterTrackChange() async {
         try? await Task.sleep(for: .milliseconds(450))
         await refreshMediaState()
@@ -1579,6 +1587,8 @@ final class VehicleController {
             default: "状态未知"
             }
         }
+        if state.optionalAudioVolume != nil { mediaVolume = state.audioVolume }
+        if state.optionalAudioVolumeMax != nil { mediaVolumeMax = state.audioVolumeMax }
         refreshMediaArtworkIfNeeded()
     }
 

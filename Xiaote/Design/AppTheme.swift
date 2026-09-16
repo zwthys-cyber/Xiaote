@@ -6,6 +6,8 @@ enum AppTheme {
     static let raised = Color.white.opacity(0.10)
     static let hairline = Color.white.opacity(0.16)
     static let muted = Color.white.opacity(0.55)
+    /// Card background matching the Tesla-UI-prototype dashboard cards.
+    static let dashboardCard = Color(red: 22 / 255, green: 22 / 255, blue: 22 / 255)
 }
 
 enum AppMotion {
