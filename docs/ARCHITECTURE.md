@@ -46,7 +46,7 @@ Tesla 不会把中控屏切歌主动推送给本 App。主页在前台连接期�
 
 ## 固定依赖
 
-- `zwthys-cyber/TeslaBLEKeyKit`：`d5da62c003ac6e2e0d8695f910957dd5708c82d7`
+- `Vendor/TeslaBLEKeyKit`：vendored 副本，固定 `misakatao/TeslaBLEKeyKit` 提交 `d5da62c003ac6e2e0d8695f910957dd5708c82d7` 加本地 CoreBluetooth 恢复改动（见 `Vendor/TeslaBLEKeyKit/UPSTREAM.md`）
 - `Lincb522/NeteaseCloudMusicApi-Swift`：`8626b8fe628144e051dd9e07180850d253c808f2`
 
-具体固定值以仓库根目录的 `project.yml` 为唯一事实来源；CI 必须测试同一 TeslaBLEKeyKit 提交。
+具体固定值以仓库根目录的 `project.yml` 为唯一事实来源；CI 对 vendored TeslaBLEKeyKit 运行同一份协议测试。
