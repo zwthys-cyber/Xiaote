@@ -119,25 +119,45 @@ struct VehicleDetailView: View {
             }
             .padding(.bottom, 9)
 
-            HStack(spacing: 0) {
-                tire("左前", vehicle.tirePressureFL)
-                tire("右前", vehicle.tirePressureFR)
-                tire("左后", vehicle.tirePressureRL)
-                tire("右后", vehicle.tirePressureRR)
+            // Top-down car outline with each reading pinned to its wheel.
+            ZStack {
+                CarTopViewShape()
+                    .fill(AppTheme.raised)
+                    .overlay(CarTopViewShape().stroke(AppTheme.hairline, lineWidth: 1))
+                    .frame(width: 250, height: 118)
+                VStack {
+                    HStack(alignment: .top) {
+                        tireBubble("左前", vehicle.tirePressureFL)
+                        Spacer()
+                        tireBubble("右前", vehicle.tirePressureFR)
+                    }
+                    Spacer()
+                    HStack(alignment: .bottom) {
+                        tireBubble("左后", vehicle.tirePressureRL)
+                        Spacer()
+                        tireBubble("右后", vehicle.tirePressureRR)
+                    }
+                }
+                .padding(.horizontal, 8)
             }
+            .frame(height: 150)
+            .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .contain)
         }
         .padding(.bottom, 30)
     }
 
-
-    private func tire(_ title: String, _ pressure: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(AppTheme.muted)
+    private func tireBubble(_ title: String, _ pressure: Double?) -> some View {
+        VStack(spacing: 2) {
+            Text(title).font(.caption2).foregroundStyle(AppTheme.muted)
             Text(pressure.map { String(format: "%.1f", $0) } ?? "—")
                 .font(.subheadline.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(vehicle.hasTirePressureWarning ? .orange : .white)
             Text("bar").font(.caption2).foregroundStyle(AppTheme.muted)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AppTheme.hairline, lineWidth: 0.5))
     }
 
     private func refresh() async {
@@ -277,5 +297,34 @@ struct VehicleDetailView: View {
     private var mobileAccess: Bool? {
         guard let vin = vehicle.currentVIN?.uppercased() else { return nil }
         return fleetAccount.mobileAccess[vin]
+    }
+}
+
+/// Minimal top-down car silhouette for the tire-pressure card: hood and
+/// trunk taper toward the rounded nose and tail, wheels sit at the corners.
+struct CarTopViewShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+        path.move(to: CGPoint(x: w * 0.04, y: h * 0.36))
+        path.addQuadCurve(to: CGPoint(x: w * 0.24, y: h * 0.08),
+                          control: CGPoint(x: w * 0.10, y: h * 0.16))
+        path.addLine(to: CGPoint(x: w * 0.76, y: h * 0.08))
+        path.addQuadCurve(to: CGPoint(x: w * 0.96, y: h * 0.36),
+                          control: CGPoint(x: w * 0.90, y: h * 0.16))
+        path.addLine(to: CGPoint(x: w * 0.96, y: h * 0.64))
+        path.addQuadCurve(to: CGPoint(x: w * 0.76, y: h * 0.92),
+                          control: CGPoint(x: w * 0.90, y: h * 0.84))
+        path.addLine(to: CGPoint(x: w * 0.24, y: h * 0.92))
+        path.addQuadCurve(to: CGPoint(x: w * 0.04, y: h * 0.64),
+                          control: CGPoint(x: w * 0.10, y: h * 0.84))
+        path.closeSubpath()
+        // Windshield hint
+        path.move(to: CGPoint(x: w * 0.26, y: h * 0.14))
+        path.addLine(to: CGPoint(x: w * 0.40, y: h * 0.14))
+        path.move(to: CGPoint(x: w * 0.60, y: h * 0.14))
+        path.addLine(to: CGPoint(x: w * 0.74, y: h * 0.14))
+        return path
     }
 }
