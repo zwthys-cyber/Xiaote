@@ -131,6 +131,9 @@ jobs:
 
       - name: Run app and UI regression tests
         run: |
+          # A previous run on this persistent runner can leave its bundle
+          # behind; xcodebuild refuses to overwrite an existing result path.
+          rm -rf TestResults.xcresult
           xcodebuild test \
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
@@ -142,6 +145,8 @@ jobs:
 
       - name: Verify compact iPhone UI
         run: |
+          # Same rationale as the main regression bundle above.
+          rm -rf SmallScreenResults.xcresult
           xcodebuild test \
             -project Xiaote.xcodeproj \
             -scheme Xiaote \
