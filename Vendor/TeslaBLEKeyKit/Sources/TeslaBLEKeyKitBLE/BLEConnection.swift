@@ -31,6 +31,7 @@ public final class BLEConnection: NSObject, VehicleConnector, @unchecked Sendabl
     private var rxCharacteristic: CBCharacteristic?
     private var connectContinuation: CheckedContinuation<Void, Error>?
     private var writeContinuations: [CheckedContinuation<Void, Error>] = []
+    private var rssiContinuation: CheckedContinuation<Int, Error>?
     private var framer = BLEFramer()
     private var blockLength = 20
     private var receiveContinuation: AsyncStream<Data>.Continuation?
@@ -193,6 +194,8 @@ public final class BLEConnection: NSObject, VehicleConnector, @unchecked Sendabl
                 continuation.resume(throwing: TeslaError.notConnected)
             }
             self.writeContinuations.removeAll()
+            self.rssiContinuation?.resume(throwing: TeslaError.notConnected)
+            self.rssiContinuation = nil
             self.peripheral = nil
             self.txCharacteristic = nil
             self.rxCharacteristic = nil
@@ -209,6 +212,25 @@ public final class BLEConnection: NSObject, VehicleConnector, @unchecked Sendabl
                 }
                 self.writeContinuations.append(continuation)
                 peripheral.writeValue(chunk, for: tx, type: .withResponse)
+            }
+        }
+    }
+
+    /// Reads the RSSI of the connected link. CoreBluetooth answers with one
+    /// `didReadRSSI` callback per request; a timeout guards against a vehicle
+    /// that stays silent so the caller's loop cannot stall on a dead link.
+    public func readRSSI() async throws -> Int {
+        try await withTimeout(seconds: 3) {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int, Error>) in
+                queue.async {
+                    guard let peripheral = self.peripheral, peripheral.state == .connected else {
+                        continuation.resume(throwing: TeslaError.notConnected)
+                        return
+                    }
+                    self.rssiContinuation?.resume(throwing: TeslaError.timeout)
+                    self.rssiContinuation = continuation
+                    peripheral.readRSSI()
+                }
             }
         }
     }
@@ -378,6 +400,8 @@ extension BLEConnection: CBCentralManagerDelegate {
                 continuation.resume(throwing: error ?? TeslaError.notConnected)
             }
             self.writeContinuations.removeAll()
+            self.rssiContinuation?.resume(throwing: error ?? TeslaError.notConnected)
+            self.rssiContinuation = nil
             self.receiveContinuation?.finish()
             self.receiveContinuation = nil
             self.framer = BLEFramer()
@@ -459,6 +483,18 @@ extension BLEConnection: CBPeripheralDelegate {
                 continuation.resume(throwing: error)
             } else {
                 continuation.resume()
+            }
+        }
+    }
+
+    public func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
+        queue.async {
+            guard let continuation = self.rssiContinuation else { return }
+            self.rssiContinuation = nil
+            if let error {
+                continuation.resume(throwing: error)
+            } else {
+                continuation.resume(returning: RSSI.intValue)
             }
         }
     }

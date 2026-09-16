@@ -39,6 +39,10 @@ final class LegacyVCSECClient: @unchecked Sendable {
     private let inbox: LegacyMessageInbox
     private var passiveAuthenticationTask: Task<Void, Never>?
 
+    /// Cadence of the idle-link ConnectionInfo telemetry, matching the
+    /// official phone key's roughly once-per-second RSSI reports.
+    private static let connectionInfoInterval: TimeInterval = 1
+
     init(connection: BLEConnection, privateKey: TeslaPrivateKey) {
         self.connection = connection
         self.privateKey = privateKey
@@ -144,7 +148,7 @@ final class LegacyVCSECClient: @unchecked Sendable {
             defer { AppDiagnostics.shared.record("ble.passive.responder.stopped") }
             while !Task.isCancelled {
                 do {
-                    let message = try await self.inbox.next()
+                    let message = try await self.inbox.next(timeout: Self.connectionInfoInterval)
                     let response = Self.vcsecPayload(from: message)
                     let startedAt = Date()
                     if try await self.respondToAuthenticationRequest(in: response) {
@@ -153,6 +157,11 @@ final class LegacyVCSECClient: @unchecked Sendable {
                     }
                 } catch is CancellationError {
                     return
+                } catch LegacyMessageInbox.InboxError.timedOut {
+                    // Idle link: refresh the vehicle's distance estimate with
+                    // this phone's RSSI. A telemetry failure must never end
+                    // the responder; only a failed challenge recovery may.
+                    await self.reportConnectionInfo()
                 } catch {
                     AppDiagnostics.shared.record("ble.passive.challenge.failed")
                     if !Task.isCancelled { onFailure() }
@@ -247,6 +256,29 @@ final class LegacyVCSECClient: @unchecked Sendable {
         return true
     }
 
+    /// Unsigned ConnectionInfo telemetry lets the vehicle associate this
+    /// connected phone key with a fresh RSSI sample. The schema follows the
+    /// reverse-engineered VCSEC message (not in the public proto): uuid = 2,
+    /// RSSI per BLE node = 3/4/5/6 (left/right/rear/center console). The
+    /// connected node is inferred from the localName suffix (C/D/P/R).
+    private func reportConnectionInfo() async {
+        do {
+            let rssi = try await connection.readRSSI()
+            let positionField: Int
+            switch connection.localName.last {
+            case "D": positionField = 3
+            case "P": positionField = 4
+            case "R": positionField = 5
+            default: positionField = 6
+            }
+            let info = Self.bytesField(2, Data(privateKey.publicKey.sha1Digest()))
+                + Self.varintField(positionField, Int64(rssi))
+            try await connection.send(Self.toVCSECUnsigned(Self.messageField(3, info)))
+        } catch {
+            AppDiagnostics.shared.record("ble.connectioninfo.failed")
+        }
+    }
+
     private func awaitCommandResult() async throws {
         for _ in 0 ..< 5 {
             let response = try await nextMessage(seconds: 2)
@@ -304,6 +336,12 @@ final class LegacyVCSECClient: @unchecked Sendable {
     static func enumField(_ field: Int, _ value: UInt64) -> Data {
         var data = varint(UInt64(field << 3))
         data.append(varint(value))
+        return data
+    }
+
+    static func varintField(_ field: Int, _ value: Int64) -> Data {
+        var data = varint(UInt64(field << 3))
+        data.append(varint(UInt64(bitPattern: value)))
         return data
     }
 
