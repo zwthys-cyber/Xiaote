@@ -273,4 +273,22 @@ final class TeslaDispatcher {
             return session
         }
     }
+
+    func restoreSession(domain: TeslaDomain, from data: Data) throws {
+        guard let privateKey else {
+            throw TeslaError.missingPrivateKey
+        }
+        try sessionState(for: domain, privateKey: privateKey).restore(from: data)
+    }
+
+    func exportSession(domain: TeslaDomain) throws -> Data? {
+        try lock.withLock { sessions[domain] }?.export()
+    }
+
+    /// Drops the session so the next startSession handshakes from scratch.
+    func invalidateSession(domain: TeslaDomain) {
+        lock.withLock {
+            sessions.removeValue(forKey: domain)
+        }
+    }
 }

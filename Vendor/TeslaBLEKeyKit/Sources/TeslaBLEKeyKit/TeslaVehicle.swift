@@ -135,6 +135,26 @@ public final class TeslaVehicle {
             timeout: configuration.sessionTimeout
         )
     }
+
+    /// Restores a VCSEC session exported by a previous connection instead of
+    /// handshaking. The restored session is unverified: send an authenticated
+    /// command (e.g. wake) and fall back to `startVCSECSession()` after
+    /// `invalidateVCSECSession()` if the vehicle rejects it.
+    public func restoreVCSECSession(from data: Data) throws {
+        Log.info("Restoring VCSEC session from cache")
+        try dispatcher.restoreSession(domain: .vehicleSecurity, from: data)
+    }
+
+    /// Serializes the live VCSEC session (public key, epoch, clock, counter)
+    /// for reuse by `restoreVCSECSession(from:)` on a later connection.
+    public func exportVCSECSession() throws -> Data? {
+        try dispatcher.exportSession(domain: .vehicleSecurity)
+    }
+
+    public func invalidateVCSECSession() {
+        Log.info("Invalidating VCSEC session")
+        dispatcher.invalidateSession(domain: .vehicleSecurity)
+    }
     
     public func vehicleStatus() async throws -> VCSEC_VehicleStatus {
         let response = try await getVCSECInfo(.getStatus)
