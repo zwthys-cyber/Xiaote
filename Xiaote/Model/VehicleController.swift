@@ -199,6 +199,7 @@ final class VehicleController {
     private var handshakeTimeoutTask: Task<Void, Never>?
     private var handshakeDidTimeOut = false
     private var passiveReconnectTask: Task<Void, Never>?
+    private var backgroundSessionRetryCount = 0
     private var foregroundConnectionInProgress = false
     private var sessionNeedsForegroundValidation = false
     private var appIsBackgrounded = false
@@ -246,6 +247,7 @@ final class VehicleController {
                 guard let self,
                       let disconnected = notification.object as? BLEConnection else { return }
                 if disconnected === self.passiveConnection {
+                    self.backgroundSessionRetryCount = 0
                     AppDiagnostics.shared.record("ble.passive.disconnected")
                     self.passiveKeyOnline = false
                     guard !self.intentionalDisconnect, self.passiveEntryEnabled else {
@@ -276,6 +278,7 @@ final class VehicleController {
                       self.passiveEntryEnabled,
                       !self.passiveKeyOnline else { return }
                 AppDiagnostics.shared.record("ble.passive.proximity.ready")
+                self.backgroundSessionRetryCount = 0
                 await self.restoreDedicatedPhoneKeyConnection(
                     on: ready,
                     generation: self.passiveLifecycle.generation
@@ -297,6 +300,7 @@ final class VehicleController {
                       self.passiveEntryEnabled, !self.passiveKeyOnline,
                       self.passiveLifecycle.activeOperation == nil else { return }
                 AppDiagnostics.shared.record("ble.passive.proximity.value")
+                self.backgroundSessionRetryCount = 0
                 await self.restoreDedicatedPhoneKeyConnection(
                     on: link,
                     generation: self.passiveLifecycle.generation
@@ -765,6 +769,7 @@ final class VehicleController {
 
     func noteAppMovedToBackground() {
         appIsBackgrounded = true
+        backgroundSessionRetryCount = 0
         AppDiagnostics.shared.record("app.scene.background")
         sessionNeedsForegroundValidation = true
         // CoreBluetooth keeps the outstanding restoration connection. A
@@ -1586,9 +1591,11 @@ final class VehicleController {
         let selectedVehicleID = vehicleID
         let generation = passiveLifecycle.beginConnection()
         let startedAt = Date()
+        var connected = false
         AppDiagnostics.shared.record("ble.passive.lifecycle.connecting.g\(generation)")
         do {
             try await link.connect(timeout: 30)
+            connected = true
             guard isCurrentPassiveOperation(generation, link: link, vehicleID: selectedVehicleID),
                   passiveLifecycle.markEstablishingSession(for: generation) else {
                 throw CancellationError()
@@ -1606,6 +1613,7 @@ final class VehicleController {
             startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
+            backgroundSessionRetryCount = 0
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
             AppDiagnostics.shared.record("ble.passive.lifecycle.ready.\(totalMilliseconds)ms")
             AppDiagnostics.shared.record("ble.passive.lifecycle.listening.g\(generation)")
@@ -1615,6 +1623,7 @@ final class VehicleController {
             if passiveLifecycle.owns(generation) {
                 _ = passiveLifecycle.markWaiting(for: generation)
                 AppDiagnostics.shared.record("ble.passive.lifecycle.waiting.g\(generation)")
+                retryFailedBackgroundSession(on: link, connected: connected, error: error)
             }
             throw error
         }
@@ -1658,12 +1667,14 @@ final class VehicleController {
               passiveLifecycle.beginRecovery(for: expectedGeneration) else { return }
         let selectedVehicleID = vehicleID
         let startedAt = Date()
+        var connected = false
         AppDiagnostics.shared.record("ble.passive.restore.begin.g\(expectedGeneration)")
         passiveKeyClient?.stopPassiveAuthenticationResponder()
         passiveKeyClient = nil
         passiveKeyOnline = false
         do {
             try await link.connect(timeout: 45)
+            connected = true
             guard isCurrentPassiveOperation(expectedGeneration, link: link, vehicleID: selectedVehicleID),
                   passiveLifecycle.markEstablishingSession(for: expectedGeneration) else {
                 throw CancellationError()
@@ -1682,6 +1693,7 @@ final class VehicleController {
             startPassiveResponder(client, on: link)
             passiveKeyClient = client
             passiveKeyOnline = true
+            backgroundSessionRetryCount = 0
             let totalMilliseconds = Int(Date().timeIntervalSince(startedAt) * 1_000)
             AppDiagnostics.shared.record("ble.passive.restore.total.\(totalMilliseconds)ms")
             AppDiagnostics.shared.record("ble.passive.restore.ready.g\(expectedGeneration)")
@@ -1692,10 +1704,25 @@ final class VehicleController {
             }
             _ = passiveLifecycle.markWaiting(for: expectedGeneration)
             AppDiagnostics.shared.record("ble.passive.restore.pending.g\(expectedGeneration)")
+            retryFailedBackgroundSession(on: link, connected: connected, error: error)
             // Keep this CBCentralManager alive. Replacing it with another
             // manager using the same restoration identifier can strand iOS
             // in a permanent "restoring" state until the app is terminated.
             schedulePassiveKeyReconnect()
+        }
+    }
+
+    private func retryFailedBackgroundSession(on link: BLEConnection, connected: Bool, error: Error) {
+        guard connected, appIsBackgrounded, !(error is CancellationError),
+              backgroundSessionRetryCount < 1, passiveConnection === link else { return }
+        backgroundSessionRetryCount += 1
+        AppDiagnostics.shared.record("ble.passive.restore.session.retry")
+        Task { [weak self, weak link] in
+            guard let self, let link, self.passiveConnection === link,
+                  self.appIsBackgrounded, self.passiveEntryEnabled,
+                  !self.passiveKeyOnline else { return }
+            await link.resetReceiveMessages()
+            await self.restoreDedicatedPhoneKeyConnection(on: link)
         }
     }
 
