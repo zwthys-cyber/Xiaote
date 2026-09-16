@@ -132,7 +132,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$UI_PHONE_ID" \
             -derivedDataPath "$RUNNER_TOOL_CACHE/xiaote/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages" \
-            -resultBundlePath TestResults.xcresult \
+            -resultBundlePath TestResults-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.xcresult \
             -parallel-testing-enabled NO
 
       - name: Verify compact iPhone UI
@@ -143,18 +143,18 @@ jobs:
             -destination "platform=iOS Simulator,id=$UI_SMALL_PHONE_ID" \
             -derivedDataPath "$RUNNER_TOOL_CACHE/xiaote/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TOOL_CACHE/xiaote/SourcePackages" \
-            -resultBundlePath SmallScreenResults.xcresult \
+            -resultBundlePath SmallScreenResults-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.xcresult \
             -only-testing:XiaoteUITests \
             -parallel-testing-enabled NO
 
       - name: Export UI screenshots
         if: always()
         run: |
-          if [ -d TestResults.xcresult ]; then
-            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path build/ui-screenshots
+          if [ -d TestResults-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.xcresult --output-path build/ui-screenshots-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
           fi
-          if [ -d SmallScreenResults.xcresult ]; then
-            xcrun xcresulttool export attachments --path SmallScreenResults.xcresult --output-path build/ui-screenshots-small
+          if [ -d SmallScreenResults-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.xcresult ]; then
+            xcrun xcresulttool export attachments --path SmallScreenResults-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.xcresult --output-path build/ui-screenshots-small-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
           fi
 
       - name: Upload simulator results
@@ -165,10 +165,10 @@ jobs:
         with:
           name: Xiaote-Simulator-Results
           path: |
-            TestResults.xcresult
-            SmallScreenResults.xcresult
-            build/ui-screenshots
-            build/ui-screenshots-small
+            TestResults-${{ github.run_id }}-${{ github.run_attempt }}.xcresult
+            SmallScreenResults-${{ github.run_id }}-${{ github.run_attempt }}.xcresult
+            build/ui-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
+            build/ui-screenshots-small-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 7
 
       - name: Upload UI screenshots
@@ -178,8 +178,8 @@ jobs:
         with:
           name: Xiaote-UI-Screenshots
           path: |
-            build/ui-screenshots
-            build/ui-screenshots-small
+            build/ui-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
+            build/ui-screenshots-small-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           retention-days: 14
 
@@ -189,10 +189,10 @@ jobs:
         with:
           name: Xiaote-Simulator-Results-Retry
           path: |
-            TestResults.xcresult
-            SmallScreenResults.xcresult
-            build/ui-screenshots
-            build/ui-screenshots-small
+            TestResults-${{ github.run_id }}-${{ github.run_attempt }}.xcresult
+            SmallScreenResults-${{ github.run_id }}-${{ github.run_attempt }}.xcresult
+            build/ui-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
+            build/ui-screenshots-small-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 7
 
       - name: Build for physical iPhone without signing
@@ -211,9 +211,10 @@ jobs:
 
       - name: Package TrollStore IPA
         run: |
-          mkdir -p build/Payload
-          cp -R "$RUNNER_TOOL_CACHE/xiaote/DerivedData/Build/Products/Release-iphoneos/Xiaote.app" build/Payload/
-          ditto -c -k --sequesterRsrc --keepParent build/Payload build/Xiaote-unsigned.ipa
+          package_root="$RUNNER_TEMP/xiaote-package-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$package_root/Payload" build
+          cp -R "$RUNNER_TOOL_CACHE/xiaote/DerivedData/Build/Products/Release-iphoneos/Xiaote.app" "$package_root/Payload/"
+          ditto -c -k --sequesterRsrc --keepParent "$package_root/Payload" build/Xiaote-unsigned.ipa
           (cd build && shasum -a 256 Xiaote-unsigned.ipa > Xiaote-unsigned.ipa.sha256)
 
       - name: Upload IPA
