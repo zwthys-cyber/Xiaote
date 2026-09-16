@@ -222,7 +222,7 @@ public final class BLEConnection: NSObject, VehicleConnector, @unchecked Sendabl
     public func readRSSI() async throws -> Int {
         try await withTimeout(seconds: 3) {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int, Error>) in
-                queue.async {
+                self.queue.async {
                     guard let peripheral = self.peripheral, peripheral.state == .connected else {
                         continuation.resume(throwing: TeslaError.notConnected)
                         return
