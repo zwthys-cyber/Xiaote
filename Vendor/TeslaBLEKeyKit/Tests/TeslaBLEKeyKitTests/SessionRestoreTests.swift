@@ -73,7 +73,8 @@ struct VCSECSessionRestoreTests {
             nonceMode: .standard12Byte
         )
         try state.restore(from: exported)
-        let reexported = try #require(state.export())
+        let reexportedData = try state.export()
+        let reexported = try #require(reexportedData)
         #expect(try Signatures_SessionInfo(serializedBytes: reexported).counter == 7)
     }
 }
