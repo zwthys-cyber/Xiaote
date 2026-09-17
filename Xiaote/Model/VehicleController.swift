@@ -480,10 +480,27 @@ final class VehicleController {
         defer { isRefreshingVehicleState = false }
         if let location = await requestVehicleData(from: tesla, configure: { $0.getLocationState = CarServer_GetLocationState() }), location.hasLocationState {
             let state = location.locationState
-            if state.optionalLatitude != nil { scheduleLatitude = state.latitude; vehicleLocationUpdatedAt = Date() }
-            if state.optionalLongitude != nil { scheduleLongitude = state.longitude }
+            applyLocationState(state)
             if state.optionalLocationName != nil { scheduleLocationName = state.locationName }
         }
+    }
+
+    /// Picks the coordinate pair that matches the map tiles on the phone.
+    /// China-market cars report GCJ-02 "native" coordinates, and mainland
+    /// MapKit tiles are GCJ-02; the plain WGS84 `latitude` pair renders
+    /// hundreds of meters off. Non-China cars fall through to WGS84.
+    private func applyLocationState(_ state: CarServer_LocationState) {
+        if state.optionalNativeLatitude != nil, state.optionalNativeLongitude != nil {
+            scheduleLatitude = state.nativeLatitude
+            scheduleLongitude = state.nativeLongitude
+        } else if state.optionalCorrectedLatitude != nil, state.optionalCorrectedLongitude != nil {
+            scheduleLatitude = state.correctedLatitude
+            scheduleLongitude = state.correctedLongitude
+        } else if state.optionalLatitude != nil, state.optionalLongitude != nil {
+            scheduleLatitude = state.latitude
+            scheduleLongitude = state.longitude
+        }
+        if scheduleLatitude != nil { vehicleLocationUpdatedAt = Date() }
     }
 
     func refreshSchedules() async {
@@ -493,8 +510,7 @@ final class VehicleController {
         defer { isRefreshingVehicleState = false }
         if let location = await requestVehicleData(from: tesla, configure: { $0.getLocationState = CarServer_GetLocationState() }), location.hasLocationState {
             let state = location.locationState
-            if state.optionalLatitude != nil { scheduleLatitude = state.latitude; vehicleLocationUpdatedAt = Date() }
-            if state.optionalLongitude != nil { scheduleLongitude = state.longitude }
+            applyLocationState(state)
             if state.optionalLocationName != nil { scheduleLocationName = state.locationName }
         }
         var result: [VehicleSchedule] = []
@@ -2053,7 +2069,13 @@ final class VehicleController {
     private func send(_ action: CarServer_VehicleAction, to vehicle: TeslaVehicle) async throws {
         try? await vehicle.wakeVehicle()
         try await vehicle.startInfotainmentSession()
-        _ = try await vehicle.sendVehicleAction(action)
+        let response = try await vehicle.sendVehicleAction(action)
+        // Transport success is not vehicle approval: the car reports an error
+        // status when it rejects the action (asleep, unknown schedule id, …).
+        // The generated ERROR case name is mangled, so compare raw values.
+        if response.actionStatus.result.rawValue == 1 { // OPERATIONSTATUS_ERROR
+            throw LocalError.vehicleRejected(response.actionStatus.resultReason.plainText)
+        }
     }
 
     private func perform(
@@ -2357,12 +2379,15 @@ final class VehicleController {
 
     private enum LocalError: LocalizedError {
         case noVehicle, keyMissing, handshakeTimedOut, vehicleIdentityUnavailable
+        case vehicleRejected(String)
         var errorDescription: String? {
             switch self {
             case .noVehicle: "没有已配对车辆"
             case .keyMissing: "本机车辆密钥已丢失，请重新配对"
             case .handshakeTimedOut: "安全连接超时。请唤醒车辆、靠近驾驶位后重试。"
             case .vehicleIdentityUnavailable: "需要先补全车辆身份以启用完整控制。"
+            case .vehicleRejected(let reason):
+                reason.nilIfEmpty.map { "车辆拒绝了该操作：\($0)" } ?? "车辆拒绝了该操作。"
             }
         }
     }

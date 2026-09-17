@@ -8,6 +8,7 @@ import CoreLocation
 /// permission has been granted.
 struct VehicleLocationView: View {
     @Environment(VehicleController.self) private var vehicle
+    @Environment(\.dismiss) private var dismiss
     @State private var locationProvider = LocationProvider()
     @State private var hasPosition: MapCameraPosition = .automatic
 
@@ -47,6 +48,9 @@ struct VehicleLocationView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .accessibilityLabel("刷新车辆位置")
+            ToolbarItem(placement: .confirmationAction) {
+                Button("完成") { dismiss() }
+            }
         }
         .task {
             locationProvider.requestPermissionIfNeeded()
