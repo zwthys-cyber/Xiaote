@@ -42,12 +42,14 @@ struct VehicleLocationView: View {
         }
         .appDestinationPage(title: "车辆位置")
         .toolbar {
-            Button {
-                Task { await vehicle.refreshVehicleLocation() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    Task { await vehicle.refreshVehicleLocation() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .accessibilityLabel("刷新车辆位置")
             }
-            .accessibilityLabel("刷新车辆位置")
             ToolbarItem(placement: .confirmationAction) {
                 Button("完成") { dismiss() }
             }
