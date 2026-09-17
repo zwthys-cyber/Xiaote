@@ -70,6 +70,14 @@ struct VehicleSchedulesView: View {
                     }
                 }
             }
+            if let failure = vehicle.lastCommandFailure {
+                // A delete the vehicle rejected would otherwise look like
+                // "nothing happened": the row stays and no error is shown.
+                Section {
+                    Label(failure, systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline).foregroundStyle(.orange)
+                }
+            }
             if let name = vehicle.scheduleLocationName {
                 Section { Label("预约位置：\(name)", systemImage: "location") }
             }
