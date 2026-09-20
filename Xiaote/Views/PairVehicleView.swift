@@ -204,6 +204,7 @@ struct PairVehicleView: View {
     }
 
     private func beginScanning() {
+        pressFeedback += 1
         withAnimation(reduceMotion ? AppMotion.reduced : .spring(response: 0.48, dampingFraction: 0.76)) { mode = .scanning }
         guard automaticallyScans else { return }
         scanner.start()
