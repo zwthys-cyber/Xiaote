@@ -27,7 +27,7 @@ struct FleetHomeView: View {
             }
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+
         .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $showingAccount) {
             TeslaAccountView().environment(account)
@@ -38,7 +38,7 @@ struct FleetHomeView: View {
             NavigationStack { PairVehicleView(showsCloseButton: true) }
                 .environment(localVehicle)
                 .environment(account)
-                .preferredColorScheme(.dark)
+
         }
         .task {
             if account.vehicles.isEmpty { await account.refreshVehicles() }
@@ -82,7 +82,7 @@ struct FleetHomeView: View {
                 }
             }
             Spacer()
-            if account.isWorking && !isPullRefreshing { ProgressView().controlSize(.small).tint(.white) }
+            if account.isWorking && !isPullRefreshing { ProgressView().controlSize(.small).tint(AppTheme.foreground) }
         }
         .padding(16)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -141,7 +141,7 @@ struct FleetHomeView: View {
             HStack(spacing: 14) {
                 Image(systemName: "key.horizontal.fill")
                     .font(.title3).frame(width: 38, height: 38)
-                    .background(.white, in: Circle()).foregroundStyle(.black)
+                    .background(AppTheme.foreground, in: Circle()).foregroundStyle(AppTheme.inverse)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("添加手机蓝牙钥匙").font(.headline)
                     Text("用于无感进入和近距离本地控制")

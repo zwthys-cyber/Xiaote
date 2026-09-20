@@ -105,7 +105,7 @@ private struct SceneEditorView: View {
             }
             .onAppear { if originalScene == nil { originalScene = scene } }
         }
-        .preferredColorScheme(.dark)
+
         .edgeSwipeToDismiss(enabled: !hasChanges)
     }
 }

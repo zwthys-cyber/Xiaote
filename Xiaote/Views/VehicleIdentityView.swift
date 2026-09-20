@@ -57,7 +57,7 @@ struct VehicleIdentityView: View {
                         .frame(maxWidth: .infinity).frame(height: 50)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.foreground)
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.hairline, lineWidth: 0.7))
                 .padding(.top, 14)
@@ -73,20 +73,20 @@ struct VehicleIdentityView: View {
                     }
                 } label: {
                     Group {
-                        if isSaving { ProgressView().tint(.black) }
+                        if isSaving { ProgressView().tint(AppTheme.inverse) }
                         else { Text("验证并启用").fontWeight(.semibold) }
                     }
                     .frame(maxWidth: .infinity).frame(height: 54)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.black)
-                .background(.white, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+                .foregroundStyle(AppTheme.inverse)
+                .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
                 .disabled(vin.count != 17 || isSaving)
                 .opacity(vin.count == 17 ? 1 : 0.45)
             }
             .padding(24)
             .background(AppTheme.background.ignoresSafeArea())
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.foreground)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("稍后") { dismiss() }.foregroundStyle(AppTheme.muted)
@@ -102,7 +102,7 @@ struct VehicleIdentityView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+
         .edgeSwipeToDismiss()
     }
 }

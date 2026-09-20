@@ -18,12 +18,14 @@ struct VehicleLocationView: View {
                 Map(position: $hasPosition) {
                     Annotation("车辆位置", coordinate: coordinate) {
                         Image("TeslaIcon-Model3")
+                            .renderingMode(.template)
                             .resizable()
                             .scaledToFit()
                             .frame(width: 26, height: 26)
                             .padding(10)
-                            .background(.white, in: Circle())
-                            .overlay(Circle().stroke(Color.black.opacity(0.16), lineWidth: 1))
+                            .foregroundStyle(AppTheme.foreground)
+                            .background(AppTheme.surface, in: Circle())
+                            .overlay(Circle().stroke(AppTheme.hairline, lineWidth: 1))
                             .shadow(radius: 3)
                     }
                     UserAnnotation()

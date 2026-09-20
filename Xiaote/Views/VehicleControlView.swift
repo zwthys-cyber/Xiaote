@@ -61,7 +61,7 @@ struct VehicleControlView: View {
             }
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+
         .toolbar(.hidden, for: .navigationBar)
         .task {
             animateRailEntrance = !railHasAppeared && !reduceMotion
@@ -95,7 +95,7 @@ struct VehicleControlView: View {
         }) {
             NavigationStack { AddVehicleView() }
                 .environment(vehicle)
-                .preferredColorScheme(.dark)
+
                 .edgeSwipeToDismiss()
         }
         .sheet(isPresented: $showingRenameVehicle) {
@@ -118,7 +118,7 @@ struct VehicleControlView: View {
         .fullScreenCover(isPresented: $showingVehicleLocation) {
             NavigationStack { VehicleLocationView() }
                 .environment(vehicle)
-                .preferredColorScheme(.dark)
+
         }
     }
 
@@ -221,6 +221,7 @@ struct VehicleControlView: View {
             } label: {
                 HStack(spacing: 14) {
                     Image("TeslaIcon-Model3")
+                        .renderingMode(.template)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 48, height: 48)
@@ -236,7 +237,7 @@ struct VehicleControlView: View {
                         Text(statusSummary(at: now)).font(.caption).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
-                    if busy && !isPullRefreshing { ProgressView().controlSize(.small).tint(.white) }
+                    if busy && !isPullRefreshing { ProgressView().controlSize(.small).tint(AppTheme.foreground) }
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(AppTheme.muted)
@@ -266,7 +267,7 @@ struct VehicleControlView: View {
             .font(.subheadline.weight(.semibold))
             .monospacedDigit()
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(AppTheme.foreground)
         .padding(16)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(AppTheme.hairline, lineWidth: 0.5))
@@ -312,15 +313,15 @@ struct VehicleControlView: View {
         } label: {
             Group {
                 if vehicle.executingAction == action {
-                    ProgressView().controlSize(.mini).tint(.black)
+                    ProgressView().controlSize(.mini).tint(AppTheme.inverse)
                 } else {
                     Image(systemName: action == .unlock ? "lock.open.fill" : "lock.fill")
                         .font(.system(size: 15, weight: .semibold))
                 }
             }
             .frame(width: 44, height: 44)
-            .foregroundStyle(.black)
-            .background(.white, in: Circle())
+            .foregroundStyle(AppTheme.inverse)
+            .background(AppTheme.foreground, in: Circle())
         }
         .buttonStyle(UtilityPressStyle())
         .disabled(!connected || vehicle.executingAction != nil)
@@ -432,8 +433,8 @@ struct VehicleControlView: View {
             HStack(spacing: 8) {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 4)
-                        Capsule().fill(Color.white).frame(width: geometry.size.width * CGFloat(volume), height: 4)
+                        Capsule().fill(AppTheme.foreground.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(AppTheme.foreground).frame(width: geometry.size.width * CGFloat(volume), height: 4)
                     }
                 }
                 .frame(height: 4)
@@ -454,14 +455,14 @@ struct VehicleControlView: View {
     ) -> some View {
         Button { submit(action) { await operation() } } label: {
             Group {
-                if vehicle.executingAction == action { ProgressView().controlSize(.mini).tint(emphasized ? .black : .white) }
+                if vehicle.executingAction == action { ProgressView().controlSize(.mini).tint(emphasized ? AppTheme.inverse : AppTheme.foreground) }
                 else if let asset {
-                    Image(asset).resizable().scaledToFit().frame(width: 17, height: 17)
+                    Image(asset).renderingMode(.template).resizable().scaledToFit().frame(width: 17, height: 17)
                 } else { Image(systemName: symbol).font(.caption.weight(.semibold)) }
             }
             .frame(width: 36, height: 36)
-            .background(emphasized ? Color.white : AppTheme.raised, in: Circle())
-            .foregroundStyle(emphasized ? .black : .white)
+            .background(emphasized ? AppTheme.foreground : AppTheme.raised, in: Circle())
+            .foregroundStyle(emphasized ? AppTheme.inverse : AppTheme.foreground)
         }
         .buttonStyle(UtilityPressStyle())
         .disabled(vehicle.executingAction != nil)
@@ -482,8 +483,8 @@ struct VehicleControlView: View {
                         .font(.caption.weight(.semibold))
                         .frame(minHeight: 44)
                         .padding(.horizontal, 12)
-                        .background(vehicle.isClimateOn ? Color.white : AppTheme.raised, in: Capsule())
-                        .foregroundStyle(vehicle.isClimateOn ? .black : .white)
+                        .background(vehicle.isClimateOn ? AppTheme.foreground : AppTheme.raised, in: Capsule())
+                        .foregroundStyle(vehicle.isClimateOn ? AppTheme.inverse : AppTheme.foreground)
                 }
                 .buttonStyle(UtilityPressStyle())
                 .disabled(!connected || vehicle.executingAction != nil)
@@ -719,7 +720,7 @@ private struct HomeLayoutView: View {
             .navigationTitle("编辑主页").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { save(); dismiss() } } }
         }
-        .preferredColorScheme(.dark)
+
     }
 }
 
@@ -754,11 +755,11 @@ private struct ActionButton: View {
                     .frame(maxWidth: .infinity, minHeight: 68)
                 }
             }
-            .foregroundStyle(appearance == .primary ? Color.black : Color.white)
+            .foregroundStyle(appearance == .primary ? AppTheme.inverse : AppTheme.foreground)
             .background(background, in: RoundedRectangle(cornerRadius: appearance == .primary ? 20 : 18, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: appearance == .primary ? 20 : 18, style: .continuous)
-                    .stroke(appearance == .safety ? Color.white.opacity(0.34) : AppTheme.hairline, lineWidth: 0.5)
+                    .stroke(appearance == .safety ? AppTheme.foreground.opacity(0.34) : AppTheme.hairline, lineWidth: 0.5)
             }
         }
         .buttonStyle(ActionPressStyle(primary: appearance == .primary))
@@ -777,7 +778,7 @@ private struct ActionButton: View {
     }
 
     private var background: Color {
-        if appearance == .primary { return .white }
+        if appearance == .primary { return AppTheme.foreground }
         return appearance == .safety ? AppTheme.raised : AppTheme.surface
     }
 }
@@ -889,7 +890,7 @@ private struct MusicPanelView: View {
         }
         .padding(24)
         .background(AppTheme.musicPanel, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .presentationBackground(Color.black.opacity(0.001))
+        .presentationBackground(Color.clear)
     }
 
     @ViewBuilder
@@ -900,8 +901,8 @@ private struct MusicPanelView: View {
                 Image(systemName: "speaker.fill").font(.caption).foregroundStyle(AppTheme.muted)
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.12)).frame(height: 4)
-                        Capsule().fill(Color.white).frame(width: geometry.size.width * CGFloat(volume), height: 4)
+                        Capsule().fill(AppTheme.foreground.opacity(0.12)).frame(height: 4)
+                        Capsule().fill(AppTheme.foreground).frame(width: geometry.size.width * CGFloat(volume), height: 4)
                     }
                 }
                 .frame(height: 4)
@@ -923,16 +924,16 @@ private struct MusicPanelView: View {
         Button { Task { await operation() } } label: {
             Group {
                 if vehicle.executingAction != nil && (label == "暂停" || label == "继续播放" || label == "上一首" || label == "下一首" || label == "切换收藏") {
-                    ProgressView().controlSize(.mini).tint(emphasized ? .black : .white)
+                    ProgressView().controlSize(.mini).tint(emphasized ? AppTheme.inverse : AppTheme.foreground)
                 } else if let asset {
-                    Image(asset).resizable().scaledToFit().frame(width: large ? 24 : 20, height: large ? 24 : 20)
+                    Image(asset).renderingMode(.template).resizable().scaledToFit().frame(width: large ? 24 : 20, height: large ? 24 : 20)
                 } else {
                     Image(systemName: symbol).font(.system(size: emphasized ? 22 : (large ? 18 : 16), weight: .semibold))
                 }
             }
             .frame(width: emphasized ? 64 : (large ? 52 : 44), height: emphasized ? 64 : (large ? 52 : 44))
-            .background(emphasized ? Color.white : Color.white.opacity(0.07), in: Circle())
-            .foregroundStyle(emphasized ? .black : .white)
+            .background(emphasized ? AppTheme.foreground : AppTheme.foreground.opacity(0.07), in: Circle())
+            .foregroundStyle(emphasized ? AppTheme.inverse : AppTheme.foreground)
         }
         .buttonStyle(UtilityPressStyle())
         .disabled(vehicle.executingAction != nil)

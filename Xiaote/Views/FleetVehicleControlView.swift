@@ -81,7 +81,7 @@ struct FleetVehicleControlView: View {
         }
         .scrollIndicators(.hidden)
         .appDestinationPage(title: control.currentVehicle.name)
-        .tint(.white)
+        .tint(AppTheme.foreground)
         .refreshable {
             isPullRefreshing = true
             defer { isPullRefreshing = false }
@@ -115,7 +115,7 @@ struct FleetVehicleControlView: View {
                         Text("•••• \(control.vehicle.vin.suffix(4))").font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted)
                     }
                     Spacer()
-                    Image(systemName: "car.side.fill").font(.system(size: 40, weight: .light)).foregroundStyle(.white.opacity(0.8)).accessibilityHidden(true)
+                    Image(systemName: "car.side.fill").font(.system(size: 40, weight: .light)).foregroundStyle(AppTheme.foreground.opacity(0.8)).accessibilityHidden(true)
                 }
                 LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
                     metric("电量", value: control.data?.chargeState?.batteryLevel.map { "\($0)%" } ?? "—", icon: "battery.75percent")
@@ -217,7 +217,7 @@ struct FleetCommandCategoryView: View {
         }
         .scrollContentBackground(.hidden)
         .appDestinationPage(title: NSLocalizedString(category.rawValue, comment: ""))
-        .tint(.white)
+        .tint(AppTheme.foreground)
         .sheet(item: $selectedCommand) { FleetCommandSheet(control: control, command: $0) }
     }
 }

@@ -27,7 +27,7 @@ struct TeslaAccountView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("完成") { dismiss() }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.foreground)
                 }
             }
             .confirmationDialog("退出 Tesla 账号？", isPresented: $confirmSignOut, titleVisibility: .visible) {
@@ -51,7 +51,7 @@ struct TeslaAccountView: View {
                 initialLoadComplete = true
             }
         }
-        .preferredColorScheme(.dark)
+
         .edgeSwipeToDismiss()
         .onChange(of: account.isSignedIn) { wasSignedIn, isSignedIn in
             if !wasSignedIn && isSignedIn { dismiss() }
@@ -107,7 +107,7 @@ struct TeslaAccountView: View {
         VStack(spacing: 18) {
             Image(systemName: "car.side")
                 .font(.system(size: 46, weight: .ultraLight))
-                .foregroundStyle(.white.opacity(0.72))
+                .foregroundStyle(AppTheme.foreground.opacity(0.72))
                 .frame(height: 58)
             VStack(spacing: 7) {
                 Text("此账号暂无车辆")
@@ -252,7 +252,7 @@ struct TeslaAccountView: View {
         VStack(spacing: 0) {
             Image(systemName: "person.crop.circle")
                 .font(.system(size: 64, weight: .ultraLight))
-                .foregroundStyle(.white.opacity(0.82))
+                .foregroundStyle(AppTheme.foreground.opacity(0.82))
                 .padding(.top, 46)
             Text("连接 Tesla 账号")
                 .font(.title2.weight(.semibold))
@@ -268,13 +268,13 @@ struct TeslaAccountView: View {
                 Task { await account.signIn() }
             } label: {
                 HStack(spacing: 8) {
-                    if account.isWorking { TrailingDots(size: 20, color: .black) }
+                    if account.isWorking { TrailingDots(size: 20, color: AppTheme.inverse) }
                     Text("使用 Tesla 账号继续")
                 }
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 54)
-                .background(.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .foregroundStyle(.black)
+                .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .foregroundStyle(AppTheme.inverse)
             }
             .buttonStyle(PrimaryPressStyle())
             .disabled(account.isWorking)

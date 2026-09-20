@@ -55,15 +55,15 @@ struct FleetCommandSheet: View {
                     } label: {
                         HStack(spacing: 10) {
                             Spacer(minLength: 0)
-                            if isSending { ProgressView().tint(.black) }
+                            if isSending { ProgressView().tint(AppTheme.inverse) }
                             Text(LocalizedStringKey(isSending ? "正在发送…" : succeeded ? "车辆已接受指令" : command.title))
                                 .font(.body.weight(.semibold))
                             Spacer(minLength: 0)
                         }
-                        .foregroundStyle(.black)
+                        .foregroundStyle(AppTheme.inverse)
                         .padding(.vertical, 12)
                         .frame(minHeight: 48)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                        .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 14))
                     }
                     .buttonStyle(PrimaryPressStyle())
                     .disabled(isSending || succeeded || !control.canControl || control.account.remoteCommandInFlight || !isValid)
@@ -90,7 +90,7 @@ struct FleetCommandSheet: View {
             .onChange(of: values) { _, _ in succeeded = false; feedback = nil }
             .onChange(of: control.account.isSignedIn) { _, signedIn in if !signedIn { dismiss() } }
         }
-        .tint(.white)
+        .tint(AppTheme.foreground)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(isSending)
