@@ -12,6 +12,7 @@ struct PairVehicleView: View {
     @State private var mode: Mode = .welcome
     @State private var showingPairingNotice = false
     @State private var scanTask: Task<Void, Never>?
+    @State private var pressFeedback = 0
 
     private enum Mode: Equatable { case welcome, scanning, finished }
 
@@ -36,6 +37,7 @@ struct PairVehicleView: View {
             Button("取消", role: .cancel) {}
             Button("确定", role: .destructive) { beginScanning() }
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: pressFeedback)
         .onDisappear { scanTask?.cancel(); scanner.stop() }
         .edgeSwipeToDismiss(enabled: showsCloseButton)
     }
@@ -60,7 +62,7 @@ struct PairVehicleView: View {
                 .padding(.top, 15 * scale)
             VStack(spacing: 18 * scale) {
                 Button {
-                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.9)
+                    pressFeedback += 1
                     showingPairingNotice = true
                 } label: {
                     Text("配对车辆")
