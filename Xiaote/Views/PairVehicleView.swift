@@ -229,85 +229,10 @@ struct PairVehicleView: View {
 
 private struct TeslaPairingArtwork: View {
     var body: some View {
-        Canvas { context, size in
-            let sx = size.width / 430, sy = size.height / 610
-            func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { .init(x: x * sx, y: y * sy) }
-            func draw(_ path: Path, _ opacity: Double, _ width: CGFloat) {
-                context.stroke(path, with: .color(Color.primary.opacity(opacity)), style: .init(lineWidth: width * sx, lineCap: .round, lineJoin: .round))
-            }
-
-            // The body is deliberately wider than the canvas. This lets the
-            // full-bleed silhouette continue naturally behind the screen edge.
-            var outer = Path()
-            outer.move(to: pt(-7, -12))
-            outer.addCurve(to: pt(7, 235), control1: pt(-2, 70), control2: pt(2, 170))
-            outer.addCurve(to: pt(18, 408), control1: pt(9, 300), control2: pt(10, 360))
-            outer.addCurve(to: pt(66, 505), control1: pt(24, 451), control2: pt(39, 484))
-            outer.addCurve(to: pt(133, 550), control1: pt(84, 527), control2: pt(105, 541))
-            outer.addCurve(to: pt(215, 566), control1: pt(159, 560), control2: pt(189, 565))
-            outer.addCurve(to: pt(297, 550), control1: pt(241, 565), control2: pt(271, 560))
-            outer.addCurve(to: pt(364, 505), control1: pt(325, 541), control2: pt(346, 527))
-            outer.addCurve(to: pt(412, 408), control1: pt(391, 484), control2: pt(406, 451))
-            outer.addCurve(to: pt(423, 235), control1: pt(420, 360), control2: pt(421, 300))
-            outer.addCurve(to: pt(437, -12), control1: pt(428, 170), control2: pt(432, 70))
-            draw(outer, 0.62, 2.2)
-
-            var glass = Path()
-            glass.move(to: pt(34, -10))
-            glass.addLine(to: pt(22, 210))
-            glass.addCurve(to: pt(28, 231), control1: pt(21, 220), control2: pt(23, 227))
-            glass.addCurve(to: pt(215, 276), control1: pt(82, 263), control2: pt(145, 276))
-            glass.addCurve(to: pt(402, 231), control1: pt(285, 276), control2: pt(348, 263))
-            glass.addCurve(to: pt(408, 210), control1: pt(407, 227), control2: pt(409, 220))
-            glass.addLine(to: pt(396, -10))
-            draw(glass, 0.28, 1.8)
-
-            var cowl = Path()
-            cowl.move(to: pt(8, 235))
-            cowl.addCurve(to: pt(215, 303), control1: pt(76, 284), control2: pt(145, 303))
-            cowl.addCurve(to: pt(422, 235), control1: pt(285, 303), control2: pt(354, 284))
-            draw(cowl, 0.28, 1.7)
-
-            var hood = Path()
-            hood.move(to: pt(29, 252))
-            hood.addCurve(to: pt(72, 457), control1: pt(38, 336), control2: pt(48, 414))
-            hood.addCurve(to: pt(126, 514), control1: pt(82, 480), control2: pt(99, 501))
-            hood.addCurve(to: pt(215, 538), control1: pt(153, 529), control2: pt(184, 537))
-            hood.addCurve(to: pt(304, 514), control1: pt(246, 537), control2: pt(277, 529))
-            hood.addCurve(to: pt(358, 457), control1: pt(331, 501), control2: pt(348, 480))
-            hood.addCurve(to: pt(401, 252), control1: pt(382, 414), control2: pt(392, 336))
-            draw(hood, 0.27, 1.8)
-
-            // Highland blade lamps: a shallow, closed outline that tapers
-            // toward the center instead of the swept-back teardrop of the old car.
-            var left = Path()
-            left.move(to: pt(-4, 421))
-            left.addCurve(to: pt(57, 432), control1: pt(16, 422), control2: pt(36, 426))
-            left.addCurve(to: pt(132, 452), control1: pt(83, 439), control2: pt(109, 447))
-            left.addCurve(to: pt(114, 463), control1: pt(129, 456), control2: pt(123, 460))
-            left.addCurve(to: pt(47, 456), control1: pt(88, 461), control2: pt(66, 459))
-            left.addCurve(to: pt(-4, 448), control1: pt(29, 453), control2: pt(12, 450))
-            left.closeSubpath()
-            draw(left, 0.86, 2.7)
-
-            var right = Path()
-            right.move(to: pt(434, 421))
-            right.addCurve(to: pt(373, 432), control1: pt(414, 422), control2: pt(394, 426))
-            right.addCurve(to: pt(298, 452), control1: pt(347, 439), control2: pt(321, 447))
-            right.addCurve(to: pt(316, 463), control1: pt(301, 456), control2: pt(307, 460))
-            right.addCurve(to: pt(383, 456), control1: pt(342, 461), control2: pt(364, 459))
-            right.addCurve(to: pt(434, 448), control1: pt(401, 453), control2: pt(418, 450))
-            right.closeSubpath()
-            draw(right, 0.86, 2.7)
-
-            // A single restrained lower intake line gives the new front fascia
-            // definition without duplicating the outer bumper silhouette.
-            var intake = Path()
-            intake.move(to: pt(112, 532))
-            intake.addCurve(to: pt(215, 551), control1: pt(143, 545), control2: pt(179, 551))
-            intake.addCurve(to: pt(318, 532), control1: pt(251, 551), control2: pt(287, 545))
-            draw(intake, 0.22, 1.4)
-        }
-        .drawingGroup()
+        Image("HighlandPairing")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(AppTheme.foreground)
     }
 }
