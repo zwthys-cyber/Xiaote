@@ -39,7 +39,7 @@ struct PairVehicleView: View {
             Button("取消", role: .cancel) {}
             Button("继续") { beginScanning() }
         }
-        .sensoryFeedback(.impact(weight: .light), trigger: pressFeedback)
+        .sensoryFeedback(.impact(weight: .medium), trigger: pressFeedback)
         .fullScreenCover(isPresented: $showingTeslaAccount) {
             TeslaAccountView().environment(fleetAccount)
         }
