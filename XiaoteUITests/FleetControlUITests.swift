@@ -150,14 +150,20 @@ final class FleetControlUITests: XCTestCase {
         let pair = app.buttons["配对车辆"]
         XCTAssertTrue(pair.waitForExistence(timeout: 10))
         XCTAssertTrue(pair.isHittable)
-        XCTAssertTrue(app.buttons["添加 Siri"].isHittable)
+        let account = app.buttons["登录 Tesla 账号"]
+        XCTAssertTrue(account.isHittable)
         capture("pairing-accessibility-text")
         pair.tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.alerts.buttons["取消"].isHittable)
-        XCTAssertTrue(app.alerts.buttons["确定"].isHittable)
+        XCTAssertTrue(app.alerts.buttons["继续"].isHittable)
         capture("pairing-notice-accessibility-text")
         app.alerts.buttons["取消"].tap()
+        XCTAssertTrue(pair.isHittable)
+        account.tap()
+        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["完成"].isHittable)
+        app.buttons["完成"].tap()
         XCTAssertTrue(pair.isHittable)
     }
 

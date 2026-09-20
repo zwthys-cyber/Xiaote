@@ -3,6 +3,7 @@ import UIKit
 
 struct PairVehicleView: View {
     @Environment(VehicleController.self) private var vehicle
+    @Environment(FleetAccountController.self) private var fleetAccount
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     var showsCloseButton = false
@@ -13,6 +14,7 @@ struct PairVehicleView: View {
     @State private var showingPairingNotice = false
     @State private var scanTask: Task<Void, Never>?
     @State private var pressFeedback = 0
+    @State private var showingTeslaAccount = false
 
     private enum Mode: Equatable { case welcome, scanning, finished }
 
@@ -33,11 +35,14 @@ struct PairVehicleView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .ignoresSafeArea()
-        .alert("请先关闭其他 Tesla 钥匙相关 App\n含 Tesla 原生 App", isPresented: $showingPairingNotice) {
+        .alert("为提高配对成功率，请暂时关闭其他 Tesla 钥匙 App（包括 Tesla App）", isPresented: $showingPairingNotice) {
             Button("取消", role: .cancel) {}
-            Button("确定", role: .destructive) { beginScanning() }
+            Button("继续") { beginScanning() }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: pressFeedback)
+        .fullScreenCover(isPresented: $showingTeslaAccount) {
+            TeslaAccountView().environment(fleetAccount)
+        }
         .onDisappear { scanTask?.cancel(); scanner.stop() }
         .edgeSwipeToDismiss(enabled: showsCloseButton)
     }
@@ -54,36 +59,36 @@ struct PairVehicleView: View {
         VStack(spacing: 0) {
             Spacer().frame(height: 626 * scale)
             Text("小特钥匙")
-                .font(.system(size: 30 * scale, weight: .bold, design: .rounded))
-                .tracking(-1.2)
+                .font(.system(size: 27 * scale, weight: .bold, design: .rounded))
+                .tracking(-0.8)
             Text("靠近车辆自动连接以解锁爱车和使用车控")
-                .font(.system(size: 13 * scale, weight: .semibold))
+                .font(.system(size: 12 * scale, weight: .semibold))
                 .foregroundStyle(.secondary)
-                .padding(.top, 15 * scale)
-            VStack(spacing: 18 * scale) {
+                .padding(.top, 13 * scale)
+            VStack(spacing: 14 * scale) {
                 Button {
                     pressFeedback += 1
                     showingPairingNotice = true
                 } label: {
                     Text("配对车辆")
-                        .font(.system(size: 17 * scale, weight: .semibold))
-                        .frame(width: 150 * scale, height: 56 * scale)
+                        .font(.system(size: 16 * scale, weight: .semibold))
+                        .frame(width: 142 * scale, height: 50 * scale)
                         .foregroundStyle(Color(uiColor: .systemBackground))
                         .background(.primary, in: Capsule())
                 }
                 .buttonStyle(PrimaryPressStyle())
                 .accessibilityHint("开始搜索附近的 Tesla")
 
-                Button(action: openShortcuts) {
-                    Text("添加 Siri")
-                        .font(.system(size: 17 * scale, weight: .semibold))
-                        .frame(width: 150 * scale, height: 54 * scale)
+                Button { showingTeslaAccount = true } label: {
+                    Text(fleetAccount.isSignedIn ? "Tesla 账号" : "登录 Tesla 账号")
+                        .font(.system(size: 15 * scale, weight: .semibold))
+                        .frame(width: 142 * scale, height: 48 * scale)
                         .background(Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
-                        .overlay { Capsule().stroke(.primary, lineWidth: 2) }
+                        .overlay { Capsule().stroke(.primary, lineWidth: 1.5) }
                 }
                 .buttonStyle(UtilityPressStyle())
             }
-            .padding(.top, 39 * scale)
+            .padding(.top, 32 * scale)
             Spacer(minLength: max(18, bottomInset))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,7 +109,7 @@ struct PairVehicleView: View {
                 .buttonStyle(UtilityPressStyle())
                 .accessibilityLabel("关闭配对列表")
             }
-            Text("保持屏幕常亮，并确认关闭 Tesla 原生 App 后台\n如有配对多个手机，请暂时关闭其他手机蓝牙")
+            Text("配对期间请保持屏幕常亮；如连接失败，请暂时关闭其他 Tesla 钥匙 App\n如有多个手机钥匙，请暂时关闭其他手机蓝牙")
                 .font(.system(size: 14 * scale, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -216,10 +221,6 @@ struct PairVehicleView: View {
         if showsCloseButton { dismiss() }
     }
 
-    private func openShortcuts() {
-        guard let url = URL(string: "shortcuts://gallery") else { return }
-        UIApplication.shared.open(url)
-    }
 }
 
 private struct TeslaPairingArtwork: View {
