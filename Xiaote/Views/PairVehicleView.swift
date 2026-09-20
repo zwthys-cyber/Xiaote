@@ -18,6 +18,12 @@ struct PairVehicleView: View {
 
     private enum Mode: Equatable { case welcome, scanning, finished }
 
+    private var primaryCapsuleColor: Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? .white : UIColor(red: 0.19, green: 0.20, blue: 0.24, alpha: 1)
+        })
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let scale = min(max(proxy.size.width / 430, 0.88), 1.2)
@@ -50,7 +56,7 @@ struct PairVehicleView: View {
     private func vehicleArtwork(scale: CGFloat) -> some View {
         TeslaPairingArtwork()
             .frame(height: 610 * scale)
-            .offset(y: mode == .welcome ? 0 : -292 * scale)
+            .offset(y: mode == .welcome ? 0 : -272 * scale)
             .animation(reduceMotion ? AppMotion.reduced : .spring(response: 0.48, dampingFraction: 0.76), value: mode)
             .accessibilityHidden(true)
     }
@@ -59,10 +65,10 @@ struct PairVehicleView: View {
         VStack(spacing: 0) {
             Spacer().frame(height: 626 * scale)
             Text("小特钥匙")
-                .font(.system(size: 27 * scale, weight: .bold, design: .rounded))
+                .font(.system(size: 25.5 * scale, weight: .bold, design: .rounded))
                 .tracking(-0.8)
             Text("靠近车辆自动连接以解锁爱车和使用车控")
-                .font(.system(size: 12 * scale, weight: .semibold))
+                .font(.system(size: 11.5 * scale, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .padding(.top, 13 * scale)
             VStack(spacing: 14 * scale) {
@@ -71,18 +77,18 @@ struct PairVehicleView: View {
                     showingPairingNotice = true
                 } label: {
                     Text("配对车辆")
-                        .font(.system(size: 16 * scale, weight: .semibold))
-                        .frame(width: 142 * scale, height: 50 * scale)
+                        .font(.system(size: 15 * scale, weight: .semibold))
+                        .frame(width: 142 * scale, height: 46 * scale)
                         .foregroundStyle(Color(uiColor: .systemBackground))
-                        .background(.primary, in: Capsule())
+                        .background(primaryCapsuleColor, in: Capsule())
                 }
                 .buttonStyle(PrimaryPressStyle())
                 .accessibilityHint("开始搜索附近的 Tesla")
 
                 Button { showingTeslaAccount = true } label: {
                     Text(fleetAccount.isSignedIn ? "Tesla 账号" : "登录 Tesla 账号")
-                        .font(.system(size: 15 * scale, weight: .semibold))
-                        .frame(width: 142 * scale, height: 48 * scale)
+                        .font(.system(size: 14 * scale, weight: .semibold))
+                        .frame(width: 142 * scale, height: 44 * scale)
                         .background(Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
                         .overlay { Capsule().stroke(.primary, lineWidth: 1.5) }
                 }
@@ -234,9 +240,9 @@ private struct TeslaPairingArtwork: View {
             }
             var outer = Path()
             outer.move(to: pt(-6, -12)); outer.addCurve(to: pt(7, 235), control1: pt(-1, 62), control2: pt(2, 168))
-            outer.addCurve(to: pt(24, 430), control1: pt(9, 308), control2: pt(12, 377)); outer.addCurve(to: pt(102, 555), control1: pt(37, 486), control2: pt(61, 531))
-            outer.addCurve(to: pt(215, 586), control1: pt(139, 576), control2: pt(179, 586)); outer.addCurve(to: pt(328, 555), control1: pt(251, 586), control2: pt(291, 576))
-            outer.addCurve(to: pt(406, 430), control1: pt(369, 531), control2: pt(393, 486)); outer.addCurve(to: pt(423, 235), control1: pt(418, 377), control2: pt(421, 308))
+            outer.addCurve(to: pt(24, 414), control1: pt(9, 308), control2: pt(12, 367)); outer.addCurve(to: pt(102, 532), control1: pt(37, 468), control2: pt(61, 510))
+            outer.addCurve(to: pt(215, 558), control1: pt(139, 550), control2: pt(179, 558)); outer.addCurve(to: pt(328, 532), control1: pt(251, 558), control2: pt(291, 550))
+            outer.addCurve(to: pt(406, 414), control1: pt(369, 510), control2: pt(393, 468)); outer.addCurve(to: pt(423, 235), control1: pt(418, 367), control2: pt(421, 308))
             outer.addCurve(to: pt(436, -12), control1: pt(428, 168), control2: pt(431, 62)); draw(outer, 0.62, 2.1)
 
             var glass = Path()
@@ -248,15 +254,15 @@ private struct TeslaPairingArtwork: View {
             bonnet.move(to: pt(7, 234)); bonnet.addCurve(to: pt(215, 305), control1: pt(76, 287), control2: pt(144, 305)); bonnet.addCurve(to: pt(423, 234), control1: pt(286, 305), control2: pt(354, 287)); draw(bonnet, 0.31, 1.8)
 
             var hood = Path()
-            hood.move(to: pt(30, 252)); hood.addCurve(to: pt(93, 520), control1: pt(39, 340), control2: pt(54, 465)); hood.addCurve(to: pt(215, 558), control1: pt(119, 548), control2: pt(166, 556))
-            hood.addCurve(to: pt(337, 520), control1: pt(264, 556), control2: pt(311, 548)); hood.addCurve(to: pt(400, 252), control1: pt(376, 465), control2: pt(391, 340)); draw(hood, 0.30, 1.8)
+            hood.move(to: pt(30, 252)); hood.addCurve(to: pt(93, 499), control1: pt(39, 335), control2: pt(54, 445)); hood.addCurve(to: pt(215, 532), control1: pt(119, 524), control2: pt(166, 531))
+            hood.addCurve(to: pt(337, 499), control1: pt(264, 531), control2: pt(311, 524)); hood.addCurve(to: pt(400, 252), control1: pt(376, 445), control2: pt(391, 335)); draw(hood, 0.30, 1.8)
 
             var left = Path()
-            left.move(to: pt(-5, 408)); left.addCurve(to: pt(83, 531), control1: pt(23, 449), control2: pt(41, 479)); left.addCurve(to: pt(-4, 486), control1: pt(91, 540), control2: pt(29, 510)); draw(left, 0.82, 3.1)
+            left.move(to: pt(-5, 386)); left.addCurve(to: pt(83, 507), control1: pt(22, 425), control2: pt(41, 462)); left.addCurve(to: pt(-4, 463), control1: pt(91, 516), control2: pt(29, 487)); draw(left, 0.82, 3.1)
             var right = Path()
-            right.move(to: pt(435, 408)); right.addCurve(to: pt(347, 531), control1: pt(407, 449), control2: pt(389, 479)); right.addCurve(to: pt(434, 486), control1: pt(339, 540), control2: pt(401, 510)); draw(right, 0.82, 3.1)
+            right.move(to: pt(435, 386)); right.addCurve(to: pt(347, 507), control1: pt(408, 425), control2: pt(389, 462)); right.addCurve(to: pt(434, 463), control1: pt(339, 516), control2: pt(401, 487)); draw(right, 0.82, 3.1)
             var bumper = Path()
-            bumper.move(to: pt(-8, 478)); bumper.addCurve(to: pt(215, 585), control1: pt(55, 545), control2: pt(133, 585)); bumper.addCurve(to: pt(438, 478), control1: pt(297, 585), control2: pt(375, 545)); draw(bumper, 0.82, 3.2)
+            bumper.move(to: pt(-8, 460)); bumper.addCurve(to: pt(215, 558), control1: pt(55, 523), control2: pt(133, 558)); bumper.addCurve(to: pt(438, 460), control1: pt(297, 558), control2: pt(375, 523)); draw(bumper, 0.82, 3.2)
         }
         .drawingGroup()
     }
