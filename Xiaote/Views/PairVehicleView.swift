@@ -228,11 +228,15 @@ struct PairVehicleView: View {
 }
 
 private struct TeslaPairingArtwork: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         Image("HighlandPairing")
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
-            .foregroundStyle(AppTheme.foreground)
+            .foregroundStyle(colorScheme == .dark
+                ? Color(red: 131 / 255, green: 135 / 255, blue: 145 / 255)
+                : Color(red: 116 / 255, green: 119 / 255, blue: 125 / 255))
     }
 }
