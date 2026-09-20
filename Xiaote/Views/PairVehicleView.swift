@@ -100,9 +100,12 @@ struct PairVehicleView: View {
             HStack {
                 Text("配对列表").font(.system(size: 22 * scale, weight: .bold))
                 Spacer()
-                Button(action: closePairing) {
+                Button {
+                    pressFeedback += 1
+                    closePairing()
+                } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 18 * scale, weight: .medium))
+                        .font(.system(size: 15 * scale, weight: .medium))
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
