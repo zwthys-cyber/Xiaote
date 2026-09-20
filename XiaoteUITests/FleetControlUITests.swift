@@ -145,20 +145,20 @@ final class FleetControlUITests: XCTestCase {
         capture("remote-form-english")
     }
 
-    func testPairingAndAccountEntryAtLargeText() {
+    func testPairingEntryAtLargeText() {
         let app = launch("--pairing", "--large-text")
-        let account = app.buttons["连接 Tesla 账号"]
-        XCTAssertTrue(account.waitForExistence(timeout: 10))
-        XCTAssertTrue(account.isHittable)
-        XCTAssertTrue(app.buttons["正在搜索"].exists)
-        XCTAssertFalse(app.buttons["正在搜索"].isEnabled)
+        let pair = app.buttons["配对车辆"]
+        XCTAssertTrue(pair.waitForExistence(timeout: 10))
+        XCTAssertTrue(pair.isHittable)
+        XCTAssertTrue(app.buttons["添加 Siri"].isHittable)
         capture("pairing-accessibility-text")
-        account.tap()
-        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
-        capture("account-sign-in-accessibility-text")
-        XCTAssertTrue(app.buttons["完成"].isHittable)
-        app.buttons["完成"].tap()
-        XCTAssertTrue(account.isHittable)
+        pair.tap()
+        XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.alerts.buttons["取消"].isHittable)
+        XCTAssertTrue(app.alerts.buttons["确定"].isHittable)
+        capture("pairing-notice-accessibility-text")
+        app.alerts.buttons["取消"].tap()
+        XCTAssertTrue(pair.isHittable)
     }
 
     func testLocalChargingAndSceneEditorNavigation() {
