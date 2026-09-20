@@ -240,9 +240,9 @@ private struct TeslaPairingArtwork: View {
             }
             var outer = Path()
             outer.move(to: pt(-6, -12)); outer.addCurve(to: pt(7, 235), control1: pt(-1, 62), control2: pt(2, 168))
-            outer.addCurve(to: pt(24, 414), control1: pt(9, 308), control2: pt(12, 367)); outer.addCurve(to: pt(102, 532), control1: pt(37, 468), control2: pt(61, 510))
-            outer.addCurve(to: pt(215, 558), control1: pt(139, 550), control2: pt(179, 558)); outer.addCurve(to: pt(328, 532), control1: pt(251, 558), control2: pt(291, 550))
-            outer.addCurve(to: pt(406, 414), control1: pt(369, 510), control2: pt(393, 468)); outer.addCurve(to: pt(423, 235), control1: pt(418, 367), control2: pt(421, 308))
+            outer.addCurve(to: pt(24, 414), control1: pt(9, 308), control2: pt(12, 367)); outer.addCurve(to: pt(95, 535), control1: pt(35, 475), control2: pt(55, 515))
+            outer.addCurve(to: pt(215, 565), control1: pt(135, 560), control2: pt(175, 565)); outer.addCurve(to: pt(335, 535), control1: pt(255, 565), control2: pt(295, 560))
+            outer.addCurve(to: pt(406, 414), control1: pt(375, 515), control2: pt(395, 475)); outer.addCurve(to: pt(423, 235), control1: pt(418, 367), control2: pt(421, 308))
             outer.addCurve(to: pt(436, -12), control1: pt(428, 168), control2: pt(431, 62)); draw(outer, 0.62, 2.1)
 
             var glass = Path()
@@ -254,15 +254,15 @@ private struct TeslaPairingArtwork: View {
             bonnet.move(to: pt(7, 234)); bonnet.addCurve(to: pt(215, 305), control1: pt(76, 287), control2: pt(144, 305)); bonnet.addCurve(to: pt(423, 234), control1: pt(286, 305), control2: pt(354, 287)); draw(bonnet, 0.31, 1.8)
 
             var hood = Path()
-            hood.move(to: pt(30, 252)); hood.addCurve(to: pt(93, 499), control1: pt(39, 335), control2: pt(54, 445)); hood.addCurve(to: pt(215, 532), control1: pt(119, 524), control2: pt(166, 531))
-            hood.addCurve(to: pt(337, 499), control1: pt(264, 531), control2: pt(311, 524)); hood.addCurve(to: pt(400, 252), control1: pt(376, 445), control2: pt(391, 335)); draw(hood, 0.30, 1.8)
+            hood.move(to: pt(30, 252)); hood.addCurve(to: pt(85, 495), control1: pt(40, 360), control2: pt(55, 450)); hood.addCurve(to: pt(215, 545), control1: pt(115, 535), control2: pt(160, 545))
+            hood.addCurve(to: pt(345, 495), control1: pt(270, 545), control2: pt(315, 535)); hood.addCurve(to: pt(400, 252), control1: pt(375, 450), control2: pt(390, 360)); draw(hood, 0.30, 1.8)
 
             var left = Path()
-            left.move(to: pt(-5, 386)); left.addCurve(to: pt(83, 507), control1: pt(22, 425), control2: pt(41, 462)); left.addCurve(to: pt(-4, 463), control1: pt(91, 516), control2: pt(29, 487)); draw(left, 0.82, 3.1)
+            left.move(to: pt(-2, 430)); left.addCurve(to: pt(95, 505), control1: pt(35, 465), control2: pt(65, 488)); left.addCurve(to: pt(-5, 485), control1: pt(60, 510), control2: pt(20, 500)); draw(left, 0.82, 3.1)
             var right = Path()
-            right.move(to: pt(435, 386)); right.addCurve(to: pt(347, 507), control1: pt(408, 425), control2: pt(389, 462)); right.addCurve(to: pt(434, 463), control1: pt(339, 516), control2: pt(401, 487)); draw(right, 0.82, 3.1)
+            right.move(to: pt(432, 430)); right.addCurve(to: pt(335, 505), control1: pt(395, 465), control2: pt(365, 488)); right.addCurve(to: pt(435, 485), control1: pt(370, 510), control2: pt(410, 500)); draw(right, 0.82, 3.1)
             var bumper = Path()
-            bumper.move(to: pt(-8, 460)); bumper.addCurve(to: pt(215, 558), control1: pt(55, 523), control2: pt(133, 558)); bumper.addCurve(to: pt(438, 460), control1: pt(297, 558), control2: pt(375, 523)); draw(bumper, 0.82, 3.2)
+            bumper.move(to: pt(-5, 500)); bumper.addCurve(to: pt(215, 570), control1: pt(60, 545), control2: pt(135, 570)); bumper.addCurve(to: pt(435, 500), control1: pt(295, 570), control2: pt(370, 545)); draw(bumper, 0.82, 3.2)
         }
         .drawingGroup()
     }
