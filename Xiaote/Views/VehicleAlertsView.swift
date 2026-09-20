@@ -48,7 +48,7 @@ struct VehicleAlertsView: View {
                 Button("好", role: .cancel) {}
             } message: { Text("请在系统设置中允许“小特蓝牙钥匙”发送通知。") }
         }
-        .preferredColorScheme(.dark)
+
         .edgeSwipeToDismiss()
     }
 

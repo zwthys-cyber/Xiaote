@@ -1,15 +1,17 @@
 import SwiftUI
 
 enum AppTheme {
-    static let background = Color.black
-    static let surface = Color.white.opacity(0.06)
-    static let raised = Color.white.opacity(0.10)
-    static let hairline = Color.white.opacity(0.16)
-    static let muted = Color.white.opacity(0.55)
+    static let foreground = Color(uiColor: .label)
+    static let inverse = Color(uiColor: .systemBackground)
+    static let background = Color(uiColor: .systemGroupedBackground)
+    static let surface = Color(uiColor: .secondarySystemGroupedBackground)
+    static let raised = Color(uiColor: .tertiarySystemGroupedBackground)
+    static let hairline = Color(uiColor: .separator)
+    static let muted = Color(uiColor: .secondaryLabel)
     /// Card background matching the Tesla-UI-prototype dashboard cards.
-    static let dashboardCard = Color(red: 22 / 255, green: 22 / 255, blue: 22 / 255)
+    static let dashboardCard = surface
     /// Background of the Tesla-UI-prototype dock music window (#1d2128).
-    static let musicPanel = Color(red: 29 / 255, green: 33 / 255, blue: 40 / 255)
+    static let musicPanel = surface
 }
 
 enum AppMotion {
@@ -76,7 +78,6 @@ private struct DestinationPageModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(AppTheme.background.ignoresSafeArea())
-            .preferredColorScheme(.dark)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.visible, for: .navigationBar)

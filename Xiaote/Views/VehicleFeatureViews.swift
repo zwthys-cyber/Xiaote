@@ -17,20 +17,20 @@ struct ChargingControlView: View {
                               systemImage: vehicle.isCharging ? "stop.fill" : "bolt.fill")
                             .frame(maxWidth: .infinity, minHeight: 52)
                     }
-                    .buttonStyle(.borderedProminent).tint(.white).foregroundStyle(.black)
+                    .buttonStyle(.borderedProminent).tint(AppTheme.foreground).foregroundStyle(AppTheme.inverse)
                     .disabled(!connected || vehicle.executingAction != nil)
                 }
                 controlCard("充电上限") {
                     valueHeader("目标电量", "\(Int(limit))%")
                     Slider(value: $limit, in: Double(vehicle.minimumChargeLimit)...Double(vehicle.maximumChargeLimit), step: 1)
-                        .tint(.white)
+                        .tint(AppTheme.foreground)
                     Button("应用充电上限") { Task { await vehicle.setChargeLimit(Int(limit)) } }
                         .buttonStyle(.bordered).frame(maxWidth: .infinity, alignment: .trailing)
                         .disabled(!connected || vehicle.executingAction != nil)
                 }
                 controlCard("充电电流") {
                     valueHeader("车辆允许范围内", "\(Int(amps)) A")
-                    Slider(value: $amps, in: 1...Double(max(vehicle.maxChargingCurrentAmps ?? 48, 1)), step: 1).tint(.white)
+                    Slider(value: $amps, in: 1...Double(max(vehicle.maxChargingCurrentAmps ?? 48, 1)), step: 1).tint(AppTheme.foreground)
                     Button("应用充电电流") { Task { await vehicle.setChargingCurrent(Int(amps)) } }
                         .buttonStyle(.bordered).frame(maxWidth: .infinity, alignment: .trailing)
                         .disabled(!connected || vehicle.executingAction != nil)
@@ -76,7 +76,7 @@ struct CabinControlView: View {
                     Button { Task { await vehicle.toggleClimate() } } label: {
                         Label(vehicle.isClimateOn ? "关闭空调" : "开启空调", systemImage: "fan.fill")
                             .frame(maxWidth: .infinity, minHeight: 50)
-                    }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(.black)
+                    }.buttonStyle(.borderedProminent).tint(AppTheme.foreground).foregroundStyle(AppTheme.inverse)
                         .disabled(!connected || vehicle.executingAction != nil)
                 }
                 controlCard("座舱模式") {
@@ -113,8 +113,8 @@ struct CabinControlView: View {
                 Image(systemName: icon).font(.title3)
                 Text(title).font(.subheadline.weight(.medium))
             }.frame(maxWidth: .infinity, alignment: .leading).padding(14)
-                .background(active ? Color.white : AppTheme.raised, in: RoundedRectangle(cornerRadius: 15))
-                .foregroundStyle(active ? .black : .white)
+                .background(active ? AppTheme.foreground : AppTheme.raised, in: RoundedRectangle(cornerRadius: 15))
+                .foregroundStyle(active ? AppTheme.inverse : AppTheme.foreground)
         }.buttonStyle(UtilityPressStyle()).disabled(!connected || vehicle.executingAction != nil)
     }
 
@@ -135,7 +135,7 @@ struct SentryControlView: View {
                 .font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
             Button { Task { await vehicle.toggleSentryMode() } } label: {
                 Text(vehicle.isSentryOn ? "关闭哨兵模式" : "开启哨兵模式").frame(maxWidth: .infinity, minHeight: 54)
-            }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(.black)
+            }.buttonStyle(.borderedProminent).tint(AppTheme.foreground).foregroundStyle(AppTheme.inverse)
                 .disabled(vehicle.phase != .connected || !vehicle.isSentryAvailable || vehicle.executingAction != nil)
             Spacer()
         }.padding(24).featurePage(title: "哨兵模式")
@@ -198,7 +198,7 @@ private struct FeatureStatusCard: View {
     let icon: String; let title: String; let value: String; let detail: String
     var body: some View {
         HStack(spacing: 16) {
-            Image(systemName: icon).font(.title2).frame(width: 48, height: 48).background(.white, in: Circle()).foregroundStyle(.black)
+            Image(systemName: icon).font(.title2).frame(width: 48, height: 48).background(AppTheme.foreground, in: Circle()).foregroundStyle(AppTheme.inverse)
             VStack(alignment: .leading, spacing: 4) { Text(title).font(.headline); Text(detail).font(.caption).foregroundStyle(AppTheme.muted) }
             Spacer(); Text(value).font(.title2.weight(.semibold)).monospacedDigit()
         }.padding(18).background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 20))

@@ -119,7 +119,7 @@ private struct ScheduleEditorView: View {
                             Button(["一","二","三","四","五","六","日"][day]) {
                                 if selectedDays.contains(day) { selectedDays.remove(day) } else { selectedDays.insert(day) }
                             }
-                            .buttonStyle(.bordered).tint(selectedDays.contains(day) ? .white : .gray)
+                            .buttonStyle(.bordered).tint(selectedDays.contains(day) ? AppTheme.foreground : .gray)
                         }
                     }
                 }
@@ -135,7 +135,7 @@ private struct ScheduleEditorView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+
         .edgeSwipeToDismiss()
     }
 }

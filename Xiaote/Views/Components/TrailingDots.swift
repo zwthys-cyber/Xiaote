@@ -4,7 +4,7 @@ struct TrailingDots: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var size: CGFloat = 40
-    var color: Color = .white
+    var color: Color = AppTheme.foreground
 
     private let dotCount = 5
     private let cycleDuration = 1.5

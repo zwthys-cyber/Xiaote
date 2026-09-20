@@ -33,7 +33,7 @@ struct TeslaAccountAvatar: View {
         Image(systemName: "person.crop.circle.fill")
             .resizable()
             .scaledToFit()
-            .foregroundStyle(.white.opacity(0.9))
+            .foregroundStyle(AppTheme.foreground.opacity(0.9))
             .padding(size * 0.09)
     }
 }

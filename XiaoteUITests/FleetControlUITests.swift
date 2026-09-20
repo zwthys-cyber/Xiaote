@@ -33,6 +33,29 @@ final class FleetControlUITests: XCTestCase {
         capture("vin-scanner")
     }
 
+    func testLightAppearanceNavigation() {
+        let pairing = launch("--pairing", "--light")
+        XCTAssertTrue(pairing.buttons["登录 Tesla 账号"].waitForExistence(timeout: 10))
+        capture("light-pairing")
+        pairing.buttons["登录 Tesla 账号"].tap()
+        XCTAssertTrue(pairing.navigationBars["小特账号"].waitForExistence(timeout: 5))
+        capture("light-account")
+        pairing.terminate()
+
+        let local = launch("--local-home", "--light")
+        XCTAssertTrue(local.buttons["车辆选项"].waitForExistence(timeout: 10))
+        capture("light-local-home")
+        local.terminate()
+
+        let remote = launch("--light")
+        let lock = remote.buttons["remote-quick-door_lock"]
+        XCTAssertTrue(lock.waitForExistence(timeout: 10))
+        capture("light-remote-home")
+        lock.tap()
+        XCTAssertTrue(remote.buttons["remote-send-command"].waitForExistence(timeout: 5))
+        capture("light-command-form")
+    }
+
     func testHomeAndCommandReceiptWithoutOptimisticStateChange() {
         let app = launch()
         let lock = app.buttons["remote-quick-door_lock"]

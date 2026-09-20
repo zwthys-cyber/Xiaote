@@ -35,7 +35,7 @@ struct VehicleDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { Task { await refresh() } } label: {
-                    if refreshing { ProgressView().controlSize(.small).tint(.white) }
+                    if refreshing { ProgressView().controlSize(.small).tint(AppTheme.foreground) }
                     else { Image(systemName: "arrow.clockwise") }
                 }
                 .disabled(refreshing)
@@ -153,7 +153,7 @@ struct VehicleDetailView: View {
             Text(title).font(.caption2).foregroundStyle(AppTheme.muted)
             Text(pressure.map { String(format: "%.1f", $0) } ?? "—")
                 .font(.subheadline.weight(.semibold)).monospacedDigit()
-                .foregroundStyle(vehicle.hasTirePressureWarning ? .orange : .white)
+                .foregroundStyle(vehicle.hasTirePressureWarning ? .orange : AppTheme.foreground)
             Text("bar").font(.caption2).foregroundStyle(AppTheme.muted)
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
