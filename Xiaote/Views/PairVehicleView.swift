@@ -36,7 +36,6 @@ struct PairVehicleView: View {
             Button("取消", role: .cancel) {}
             Button("确定", role: .destructive) { beginScanning() }
         }
-        .sensoryFeedback(.impact(weight: .rigid, intensity: 0.9), trigger: showingPairingNotice)
         .onDisappear { scanTask?.cancel(); scanner.stop() }
         .edgeSwipeToDismiss(enabled: showsCloseButton)
     }
@@ -60,7 +59,10 @@ struct PairVehicleView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 15 * scale)
             VStack(spacing: 18 * scale) {
-                Button { showingPairingNotice = true } label: {
+                Button {
+                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.9)
+                    showingPairingNotice = true
+                } label: {
                     Text("配对车辆")
                         .font(.system(size: 17 * scale, weight: .semibold))
                         .frame(width: 150 * scale, height: 56 * scale)
