@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="610" viewBox="0 0 430 610" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Cropped roof and shoulders, with the complete nose inside the canvas. -->
+  <path opacity=".46" stroke-width="1.7" d="M18 -18 C10 76 9 173 12 270 C13 348 17 413 31 460 C40 494 61 525 91 544 C122 564 169 573 215 574 C261 573 308 564 339 544 C369 525 390 494 399 460 C413 413 417 348 418 270 C421 173 420 76 412 -18"/>
+  <!-- Glass and cowl are deliberately quieter than the front lighting. -->
+  <path opacity=".24" stroke-width="1.4" d="M48 -18 C42 56 35 151 32 204 Q31 218 41 225 C91 254 151 268 215 269 C279 268 339 254 389 225 Q399 218 398 204 C395 151 388 56 382 -18"/>
+  <path opacity=".22" stroke-width="1.4" d="M13 230 C74 274 141 292 215 293 C289 292 356 274 417 230"/>
+  <!-- Bonnet ends inward of both lamps; no line passes through a lens. -->
+  <path opacity=".27" stroke-width="1.5" d="M48 253 C53 326 64 398 86 460 C94 483 103 505 118 518 C139 533 176 537 215 538 C254 537 291 533 312 518 C327 505 336 483 344 460 C366 398 377 326 382 253"/>
+  <!-- Left lamp and light guide. Right lamp is an exact geometric mirror. -->
+  <g id="lamp" stroke-width="1.8">
+    <path opacity=".83" d="M43 463 C56 478 72 488 91 499 L99 514 C78 509 62 502 53 493 C48 485 45 474 43 463 Z"/>
+    <path opacity=".5" stroke-width="1.1" d="M48 474 C51 483 54 490 60 494 C70 500 80 504 89 507"/>
+  </g>
+  <g transform="translate(430 0) scale(-1 1)" stroke-width="1.8">
+    <path opacity=".83" d="M43 463 C56 478 72 488 91 499 L99 514 C78 509 62 502 53 493 C48 485 45 474 43 463 Z"/>
+    <path opacity=".5" stroke-width="1.1" d="M48 474 C51 483 54 490 60 494 C70 500 80 504 89 507"/>
+  </g>
+</svg>
