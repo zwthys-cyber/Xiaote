@@ -11,7 +11,6 @@ struct PairVehicleView: View {
 
     @State private var scanner = NearbyTeslaScanner()
     @State private var mode: Mode = .welcome
-    @State private var showingPairingNotice = false
     @State private var scanTask: Task<Void, Never>?
     @State private var pressFeedback = 0
     @State private var showingTeslaAccount = false
@@ -41,10 +40,6 @@ struct PairVehicleView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .ignoresSafeArea()
-        .alert("为提高配对成功率，请暂时关闭其他 Tesla 钥匙 App（包括 Tesla App）", isPresented: $showingPairingNotice) {
-            Button("取消", role: .cancel) {}
-            Button("继续") { beginScanning() }
-        }
         .sensoryFeedback(.warning, trigger: pressFeedback)
         .fullScreenCover(isPresented: $showingTeslaAccount) {
             TeslaAccountView().environment(fleetAccount)
@@ -73,8 +68,7 @@ struct PairVehicleView: View {
                 .padding(.top, 13 * scale)
             VStack(spacing: 14 * scale) {
                 Button {
-                    pressFeedback += 1
-                    showingPairingNotice = true
+                    beginScanning()
                 } label: {
                     Text("配对车辆")
                         .font(.system(size: 15 * scale, weight: .semibold))
