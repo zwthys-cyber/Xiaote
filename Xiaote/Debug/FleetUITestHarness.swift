@@ -88,7 +88,12 @@ private final class FleetUITestURLProtocol: URLProtocol {
         let body: String
         var status = 200
         var delay = 0.1
-        if path == "/v1/vehicles" {
+        if path == "/v1/auth/start" {
+            // Exercise the direct-login request without contacting Tesla or
+            // requiring real credentials in simulator UI tests.
+            status = 503
+            body = #"{"error":{"message":"登录服务暂不可用，请重试"}}"#
+        } else if path == "/v1/vehicles" {
             body = args.contains("--empty-account") ? #"{"response":[]}"# : "{\"response\":[\(vehicle)]}"
             delay = args.contains("--empty-account") ? 1 : 0.1
         } else if path.hasSuffix("/data") {
