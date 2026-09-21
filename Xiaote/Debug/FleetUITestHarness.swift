@@ -10,6 +10,7 @@ struct FleetUITestHarness: View {
     private let emptyAccount: Bool
     private let largeText: Bool
     private let localHome: Bool
+    private let fleetHome: Bool
     private let english: Bool
     private let pairing: Bool
     private let vinScanner: Bool
@@ -26,6 +27,7 @@ struct FleetUITestHarness: View {
         emptyAccount = ProcessInfo.processInfo.arguments.contains("--empty-account")
         largeText = ProcessInfo.processInfo.arguments.contains("--large-text")
         localHome = ProcessInfo.processInfo.arguments.contains("--local-home")
+        fleetHome = ProcessInfo.processInfo.arguments.contains("--fleet-home")
         english = ProcessInfo.processInfo.arguments.contains("--english")
         pairing = isPairing
         vinScanner = ProcessInfo.processInfo.arguments.contains("--vin-scanner")
@@ -58,6 +60,9 @@ struct FleetUITestHarness: View {
                         .environment(localVehicle).environment(account)
                 } else if localHome {
                     NavigationStack { VehicleControlView() }
+                        .environment(localVehicle).environment(account)
+                } else if fleetHome {
+                    NavigationStack { FleetHomeView() }
                         .environment(localVehicle).environment(account)
                 } else if emptyAccount { TeslaAccountView().environment(account) }
                 else if let vehicle = account.vehicles.first {
