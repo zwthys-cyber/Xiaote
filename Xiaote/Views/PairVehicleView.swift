@@ -82,10 +82,12 @@ struct PairVehicleView: View {
                     beginScanning()
                 } label: {
                     Text("配对车辆")
-                        .font(.system(size: 15 * scale, weight: .semibold))
-                        .frame(width: 142 * scale, height: 46 * scale)
+                        .font(.system(size: 14.5 * scale, weight: .semibold))
+                        .frame(width: 142 * scale, height: 40 * scale)
                         .foregroundStyle(Color(uiColor: .systemBackground))
                         .background(primaryCapsuleColor, in: Capsule())
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(PrimaryPressStyle())
                 .accessibilityHint("开始搜索附近的 Tesla")
@@ -109,10 +111,12 @@ struct PairVehicleView: View {
                     }
                 } label: {
                     Text(isStartingLogin ? "正在登录…" : (fleetAccount.isSignedIn ? "Tesla 账号" : "登录 Tesla 账号"))
-                        .font(.system(size: 14 * scale, weight: .semibold))
-                        .frame(width: 142 * scale, height: 44 * scale)
+                        .font(.system(size: 13.5 * scale, weight: .semibold))
+                        .frame(width: 142 * scale, height: 38 * scale)
                         .background(Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
                         .overlay { Capsule().stroke(.primary, lineWidth: 1.5) }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(UtilityPressStyle())
                 .disabled(isStartingLogin || fleetAccount.isWorking)
@@ -127,7 +131,7 @@ struct PairVehicleView: View {
         VStack(spacing: 0) {
             Spacer().frame(height: 294 * scale)
             HStack {
-                Text("配对列表").font(.system(size: 22 * scale, weight: .bold))
+                Text("配对列表").font(.system(size: 20 * scale, weight: .bold))
                 Spacer()
                 Button {
                     pressFeedback += 1
@@ -142,7 +146,8 @@ struct PairVehicleView: View {
                 .accessibilityLabel("关闭配对列表")
             }
             Text("配对期间请保持屏幕常亮；如连接失败，请暂时关闭其他 Tesla 钥匙 App\n如有多个手机钥匙，请暂时关闭其他手机蓝牙")
-                .font(.system(size: 14 * scale, weight: .medium))
+                .font(.system(size: 12.5 * scale, weight: .medium))
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
             Group {
@@ -156,7 +161,7 @@ struct PairVehicleView: View {
                         .accessibilityLabel("正在搜索 Tesla 车辆")
                 } else {
                     Text(scanner.bluetoothMessage ?? "未找到特斯拉车辆")
-                        .font(.system(size: 16 * scale, weight: .medium))
+                        .font(.system(size: 14.5 * scale, weight: .medium))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -178,9 +183,9 @@ struct PairVehicleView: View {
                             Image(systemName: "car.side.fill").font(.system(size: 19, weight: .medium))
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(candidate.modelName ?? "Tesla · \(candidate.shortIdentifier)")
-                                    .font(.system(size: 16 * scale, weight: .semibold))
+                                    .font(.system(size: 15 * scale, weight: .semibold))
                                 Text("\(candidate.signalLabel) · \(candidate.distanceLabel)")
-                                    .font(.system(size: 13 * scale)).foregroundStyle(.secondary)
+                                    .font(.system(size: 12 * scale)).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
