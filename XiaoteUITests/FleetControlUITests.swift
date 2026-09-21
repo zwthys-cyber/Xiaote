@@ -193,7 +193,7 @@ final class FleetControlUITests: XCTestCase {
     }
 
     func testBluetoothKeyCardOpensScanningListDirectly() {
-        let app = launch("--local-home")
+        let app = launch("--fleet-home")
         let addKey = app.buttons["添加手机蓝牙钥匙"]
         reveal(addKey, in: app)
         addKey.tap()
