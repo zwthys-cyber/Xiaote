@@ -8,6 +8,7 @@ struct PairVehicleView: View {
     @Environment(\.dismiss) private var dismiss
     var showsCloseButton = false
     var automaticallyScans = true
+    var startsScanningImmediately = false
 
     @State private var scanner = NearbyTeslaScanner()
     @State private var mode: Mode = .welcome
@@ -17,6 +18,7 @@ struct PairVehicleView: View {
     @State private var loginError: String?
     @State private var isStartingLogin = false
     @State private var scanStartedAt = Date()
+    @State private var didStartInitialScan = false
 
     private enum Mode: Equatable { case welcome, scanning, finished }
 
@@ -32,7 +34,7 @@ struct PairVehicleView: View {
             ZStack(alignment: .top) {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
                 vehicleArtwork(scale: scale)
-                if mode == .welcome {
+                if mode == .welcome && !startsScanningImmediately {
                     welcomeContent(scale: scale, bottomInset: proxy.safeAreaInsets.bottom)
                         .transition(.opacity)
                 } else {
@@ -55,6 +57,11 @@ struct PairVehicleView: View {
         } message: {
             Text(loginError ?? "请稍后重试")
         }
+        .onAppear {
+            guard startsScanningImmediately, !didStartInitialScan else { return }
+            didStartInitialScan = true
+            beginScanning(providesFeedback: false, animated: false)
+        }
         .onDisappear { scanTask?.cancel(); scanner.stop() }
         .edgeSwipeToDismiss(enabled: showsCloseButton)
     }
@@ -62,7 +69,7 @@ struct PairVehicleView: View {
     private func vehicleArtwork(scale: CGFloat) -> some View {
         TeslaPairingArtwork()
             .frame(height: 610 * scale)
-            .offset(y: mode == .welcome ? 0 : -272 * scale)
+            .offset(y: mode == .welcome && !startsScanningImmediately ? 0 : -272 * scale)
             .animation(reduceMotion ? AppMotion.reduced : .spring(response: 0.48, dampingFraction: 0.76), value: mode)
             .accessibilityHidden(true)
     }
@@ -240,10 +247,16 @@ struct PairVehicleView: View {
         }
     }
 
-    private func beginScanning() {
-        pressFeedback += 1
+    private func beginScanning(providesFeedback: Bool = true, animated: Bool = true) {
+        if providesFeedback { pressFeedback += 1 }
         scanStartedAt = Date()
-        withAnimation(reduceMotion ? AppMotion.reduced : .spring(response: 0.48, dampingFraction: 0.76)) { mode = .scanning }
+        if animated {
+            withAnimation(reduceMotion ? AppMotion.reduced : .spring(response: 0.48, dampingFraction: 0.76)) {
+                mode = .scanning
+            }
+        } else {
+            mode = .scanning
+        }
         guard automaticallyScans else { return }
         scanner.start()
         scanTask?.cancel()

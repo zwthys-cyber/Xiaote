@@ -6,6 +6,7 @@ struct FleetHomeView: View {
     @State private var isPullRefreshing = false
     @State private var showingAccount = false
     @State private var showingBluetoothPairing = false
+    @State private var addKeyFeedback = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,6 +30,7 @@ struct FleetHomeView: View {
             }
         }
         .background(AppTheme.background.ignoresSafeArea())
+        .sensoryFeedback(.warning, trigger: addKeyFeedback)
 
         .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $showingAccount) {
@@ -37,7 +39,9 @@ struct FleetHomeView: View {
         .fullScreenCover(isPresented: $showingBluetoothPairing, onDismiss: {
             Task { await localVehicle.finishVehicleAdditionSheet() }
         }) {
-            NavigationStack { PairVehicleView(showsCloseButton: true) }
+            NavigationStack {
+                PairVehicleView(showsCloseButton: true, startsScanningImmediately: true)
+            }
                 .environment(localVehicle)
                 .environment(account)
 
@@ -139,6 +143,7 @@ struct FleetHomeView: View {
 
     private var bluetoothKeyCard: some View {
         Button {
+            addKeyFeedback += 1
             localVehicle.prepareForVehicleAddition()
             showingBluetoothPairing = true
         } label: {
@@ -163,6 +168,8 @@ struct FleetHomeView: View {
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(UtilityPressStyle())
+        .accessibilityLabel("添加手机蓝牙钥匙")
+        .accessibilityHint("打开配对列表并搜索附近车辆")
     }
 
     private func statusText(_ state: String?) -> String {
