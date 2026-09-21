@@ -14,6 +14,8 @@ struct PairVehicleView: View {
     @State private var scanTask: Task<Void, Never>?
     @State private var pressFeedback = 0
     @State private var showingTeslaAccount = false
+    @State private var loginError: String?
+    @State private var isStartingLogin = false
 
     private enum Mode: Equatable { case welcome, scanning, finished }
 
@@ -43,6 +45,14 @@ struct PairVehicleView: View {
         .sensoryFeedback(.warning, trigger: pressFeedback)
         .fullScreenCover(isPresented: $showingTeslaAccount) {
             TeslaAccountView().environment(fleetAccount)
+        }
+        .alert("Tesla 登录失败", isPresented: Binding(
+            get: { loginError != nil },
+            set: { if !$0 { loginError = nil } }
+        )) {
+            Button("确定", role: .cancel) { loginError = nil }
+        } message: {
+            Text(loginError ?? "请稍后重试")
         }
         .onDisappear { scanTask?.cancel(); scanner.stop() }
         .edgeSwipeToDismiss(enabled: showsCloseButton)
@@ -79,14 +89,31 @@ struct PairVehicleView: View {
                 .buttonStyle(PrimaryPressStyle())
                 .accessibilityHint("开始搜索附近的 Tesla")
 
-                Button { showingTeslaAccount = true } label: {
-                    Text(fleetAccount.isSignedIn ? "Tesla 账号" : "登录 Tesla 账号")
+                Button {
+                    if fleetAccount.isSignedIn && !fleetAccount.needsReauthentication {
+                        showingTeslaAccount = true
+                    } else {
+                        guard !isStartingLogin, !fleetAccount.isWorking else { return }
+                        isStartingLogin = true
+                        Task { @MainActor in
+                            defer { isStartingLogin = false }
+                            await fleetAccount.signIn()
+                            if let error = fleetAccount.errorMessage {
+                                loginError = error
+                            } else if fleetAccount.isSignedIn && !fleetAccount.needsReauthentication {
+                                showingTeslaAccount = true
+                            }
+                        }
+                    }
+                } label: {
+                    Text(isStartingLogin ? "正在登录…" : (fleetAccount.isSignedIn ? "Tesla 账号" : "登录 Tesla 账号"))
                         .font(.system(size: 14 * scale, weight: .semibold))
                         .frame(width: 142 * scale, height: 44 * scale)
                         .background(Color(uiColor: .secondarySystemGroupedBackground), in: Capsule())
                         .overlay { Capsule().stroke(.primary, lineWidth: 1.5) }
                 }
                 .buttonStyle(UtilityPressStyle())
+                .disabled(isStartingLogin || fleetAccount.isWorking)
             }
             .padding(.top, 32 * scale)
             Spacer(minLength: max(18, bottomInset))
