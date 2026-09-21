@@ -16,6 +16,7 @@ struct PairVehicleView: View {
     @State private var showingTeslaAccount = false
     @State private var loginError: String?
     @State private var isStartingLogin = false
+    @State private var scanStartedAt = Date()
 
     private enum Mode: Equatable { case welcome, scanning, finished }
 
@@ -90,6 +91,7 @@ struct PairVehicleView: View {
                 .accessibilityHint("开始搜索附近的 Tesla")
 
                 Button {
+                    pressFeedback += 1
                     if fleetAccount.isSignedIn && !fleetAccount.needsReauthentication {
                         showingTeslaAccount = true
                     } else {
@@ -149,7 +151,7 @@ struct PairVehicleView: View {
                 } else if !scanner.vehicles.isEmpty {
                     vehicleList(scale: scale)
                 } else if mode == .scanning {
-                    ProgressView().controlSize(.regular).tint(.primary)
+                    PairingSearchLoader(startedAt: scanStartedAt)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .accessibilityLabel("正在搜索 Tesla 车辆")
                 } else {
@@ -235,6 +237,7 @@ struct PairVehicleView: View {
 
     private func beginScanning() {
         pressFeedback += 1
+        scanStartedAt = Date()
         withAnimation(reduceMotion ? AppMotion.reduced : .spring(response: 0.48, dampingFraction: 0.76)) { mode = .scanning }
         guard automaticallyScans else { return }
         scanner.start()
@@ -265,5 +268,59 @@ private struct TeslaPairingArtwork: View {
             .foregroundStyle(colorScheme == .dark
                 ? Color(red: 131 / 255, green: 135 / 255, blue: 145 / 255)
                 : Color(red: 116 / 255, green: 119 / 255, blue: 125 / 255))
+    }
+}
+
+
+/// Native adaptation of Beautiful UI's MIT-licensed Loading State (Drive).
+/// Attribution: Resources/BeautifulUI-LICENSE.txt.
+private struct PairingSearchLoader: View {
+    let startedAt: Date
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1 : 1.0 / 30,
+                                paused: scenePhase != .active)) { timeline in
+            let elapsed = max(0, timeline.date.timeIntervalSince(startedAt))
+            HStack(spacing: 10) {
+                Canvas { context, _ in
+                    for index in 0..<9 {
+                        let row = index / 3
+                        let column = index % 3
+                        let delay = Double(column + abs(row - 1)) * 0.09
+                        let phase = max(0, elapsed - delay).truncatingRemainder(dividingBy: 0.65) / 0.65
+                        let brightness = reduceMotion ? 0.65 : 0.15 + 0.85 * pow(sin(phase * .pi), 2)
+                        let rect = CGRect(x: Double(column) * 5.5, y: Double(row) * 5.5, width: 4, height: 4)
+                        context.fill(Path(roundedRect: rect, cornerRadius: 1),
+                                     with: .color(.primary.opacity(brightness)))
+                    }
+                }
+                .frame(width: 15, height: 15)
+                Text("正在搜索")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .overlay {
+                        if !reduceMotion {
+                            GeometryReader { proxy in
+                                let phase = elapsed.truncatingRemainder(dividingBy: 1.4) / 1.4
+                                LinearGradient(colors: [.clear, .primary.opacity(0.85), .clear],
+                                               startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: proxy.size.width * 0.65)
+                                    .offset(x: proxy.size.width * (phase * 1.65 - 0.65))
+                            }
+                            .mask(Text("正在搜索").font(.system(size: 13, weight: .medium)))
+                        }
+                    }
+                Text(String(format: "%.1f s", elapsed))
+                    .font(.system(size: 12, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 42, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("正在搜索 Tesla 车辆")
+        .accessibilityIdentifier("pairing-search-loader")
     }
 }
