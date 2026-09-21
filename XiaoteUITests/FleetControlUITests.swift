@@ -179,9 +179,12 @@ final class FleetControlUITests: XCTestCase {
         pair.tap()
         XCTAssertTrue(app.buttons["关闭配对列表"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.alerts.firstMatch.exists)
+        let searchLoader = app.descendants(matching: .any)["pairing-search-loader"].firstMatch
+        XCTAssertTrue(searchLoader.waitForExistence(timeout: 5))
         capture("pairing-list-accessibility-text")
         app.buttons["关闭配对列表"].tap()
         XCTAssertTrue(pair.waitForExistence(timeout: 5))
+        XCTAssertFalse(searchLoader.exists)
         account.tap()
         assertDirectLoginFailureCanBeDismissed(in: app)
         XCTAssertTrue(pair.isHittable)
