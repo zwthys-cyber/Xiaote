@@ -12,7 +12,9 @@ struct FleetHomeView: View {
             header
             ScrollView {
                 VStack(spacing: 18) {
-                    accountStatus
+                    if account.needsReauthentication || account.connectionState == .unavailable {
+                        accountStatus
+                    }
                     vehicles
                     bluetoothKeyCard
                 }
@@ -71,8 +73,10 @@ struct FleetHomeView: View {
                 .background(AppTheme.raised, in: Circle())
             VStack(alignment: .leading, spacing: 3) {
                 Text(account.connectionState.title).font(.headline)
-                Text(account.needsReauthentication ? "重新登录后恢复远程功能，本地钥匙仍可使用" : "通过 Tesla Fleet API 获取车辆状态")
-                    .font(.caption).foregroundStyle(AppTheme.muted)
+                if account.needsReauthentication {
+                    Text("重新登录后恢复远程功能，本地钥匙仍可使用")
+                        .font(.caption).foregroundStyle(AppTheme.muted)
+                }
                 if account.needsReauthentication {
                     Button("重新登录") { Task { await account.signIn() } }
                         .disabled(account.isWorking)
@@ -139,8 +143,13 @@ struct FleetHomeView: View {
             showingBluetoothPairing = true
         } label: {
             HStack(spacing: 14) {
-                Image(systemName: "key.horizontal.fill")
-                    .font(.title3).frame(width: 38, height: 38)
+                Image("TeslaPhoneKey")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .frame(width: 38, height: 38)
+                    .accessibilityHidden(true)
                     .background(AppTheme.foreground, in: Circle()).foregroundStyle(AppTheme.inverse)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("添加手机蓝牙钥匙").font(.headline)
