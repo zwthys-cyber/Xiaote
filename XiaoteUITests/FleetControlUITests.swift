@@ -192,6 +192,18 @@ final class FleetControlUITests: XCTestCase {
         assertDirectLoginFailureCanBeDismissed(in: app)
     }
 
+    func testBluetoothKeyCardOpensScanningListDirectly() {
+        let app = launch("--local-home")
+        let addKey = app.buttons["添加手机蓝牙钥匙"]
+        reveal(addKey, in: app)
+        addKey.tap()
+
+        XCTAssertTrue(app.buttons["关闭配对列表"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["pairing-search-loader"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["小特钥匙"].exists)
+        capture("bluetooth-key-direct-search")
+    }
+
     private func assertDirectLoginFailureCanBeDismissed(in app: XCUIApplication) {
         let alert = app.alerts["Tesla 登录失败"]
         XCTAssertTrue(alert.waitForExistence(timeout: 10))
