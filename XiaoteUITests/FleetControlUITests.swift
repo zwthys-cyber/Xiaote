@@ -38,8 +38,8 @@ final class FleetControlUITests: XCTestCase {
         XCTAssertTrue(pairing.buttons["登录 Tesla 账号"].waitForExistence(timeout: 10))
         capture("light-pairing")
         pairing.buttons["登录 Tesla 账号"].tap()
-        XCTAssertTrue(pairing.navigationBars["小特账号"].waitForExistence(timeout: 5))
-        capture("light-account")
+        assertDirectLoginFailureCanBeDismissed(in: pairing)
+        capture("light-login-recovery")
         pairing.terminate()
 
         let local = launch("--local-home", "--light")
@@ -183,10 +183,22 @@ final class FleetControlUITests: XCTestCase {
         app.buttons["关闭配对列表"].tap()
         XCTAssertTrue(pair.waitForExistence(timeout: 5))
         account.tap()
-        XCTAssertTrue(app.navigationBars["小特账号"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["完成"].isHittable)
-        app.buttons["完成"].tap()
+        assertDirectLoginFailureCanBeDismissed(in: app)
         XCTAssertTrue(pair.isHittable)
+        account.tap()
+        assertDirectLoginFailureCanBeDismissed(in: app)
+    }
+
+    private func assertDirectLoginFailureCanBeDismissed(in app: XCUIApplication) {
+        let alert = app.alerts["Tesla 登录失败"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 10))
+        XCTAssertTrue(alert.staticTexts["登录服务暂不可用，请重试"].exists)
+        XCTAssertFalse(app.navigationBars["小特账号"].exists)
+        alert.buttons["确定"].tap()
+        let login = app.buttons["登录 Tesla 账号"]
+        XCTAssertTrue(login.waitForExistence(timeout: 5))
+        XCTAssertTrue(login.isEnabled)
+        XCTAssertTrue(login.isHittable)
     }
 
     func testLocalChargingAndSceneEditorNavigation() {
