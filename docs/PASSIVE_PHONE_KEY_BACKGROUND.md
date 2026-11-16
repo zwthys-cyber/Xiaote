@@ -1,9 +1,11 @@
 # Tesla BLE 后台无感开锁与离车锁车技术说明
 
 > 项目：小特蓝牙钥匙
-> 当前版本：v2.3.2（Build 232）
-> 平台：iOS 17 / SwiftUI / CoreBluetooth / Tesla VCSEC
+> 评审基线：v2.3.2（Build 232），历史技术记录，非当前版本说明。
+> 平台：iOS / SwiftUI / CoreBluetooth / Tesla VCSEC
 > 文档用途：供 iOS、CoreBluetooth、Tesla Phone Key 协议专家及 Google Gemini 严格评审
+
+当前正式版为 v3.3.2。后续密钥保护、认证挑战收件箱与初始化补答等修复见 [体验复核](PHONE_KEY_REVIEW_2026-09.md)；当前双连接和恢复行为见 [架构与协议](ARCHITECTURE.md)，安装条件见 [构建与发布](BUILD.md)。本文后续“当前”均指原评审基线。
 
 ## 1. 评审目标
 

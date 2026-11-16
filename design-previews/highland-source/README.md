@@ -2,6 +2,8 @@
 
 These are design mockups, not iOS screenshots or released app assets.
 
+This folder preserves the earlier design exploration. The current production pairing screen is implemented in `Xiaote/Views/PairVehicleView.swift`; current product and release documentation starts at [docs/README.md](../../docs/README.md).
+
 Source: RBLXSupercars, shared by brandonleong28, **2024 Tesla Model 3**, CC BY 4.0. See SOURCE-CREDITS.md for provenance and license links. The source artist URL is reported unavailable upstream; the public copy retains attribution metadata. This is an artist model, not Tesla CAD.
 
 Downloaded source SHA-256: 6ef6933d93ee0812d4049446a38e9b46273cab03b21be1e2ef1d502eccdb684b.
@@ -16,11 +18,12 @@ Changes: Blender orthographic top projection, opaque material override for conto
 Rebuild with Python 3, CairoSVG and Noto Sans CJK SC installed:
 
 ```sh
+cd design-previews/highland-source
 python3 clean-projection.py
 python3 build-preview.py
 ```
 
-Typography and status-bar symbols are illustrative. No SwiftUI source or production asset has been changed.
+Typography and status-bar symbols are illustrative. Rebuilding these previews does not update SwiftUI source or production assets.
 
 ## Headlight revision
 

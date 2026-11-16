@@ -1,9 +1,11 @@
 # Tesla BLE 附近车辆距离稳定性升级说明
 
 > 项目：小特蓝牙钥匙  
-> 版本：v2.3.2（Build 232）  
-> 平台：iOS 17 / SwiftUI / CoreBluetooth  
+> 评审基线：v2.3.2（Build 232），历史算法记录。
+> 平台：iOS / SwiftUI / CoreBluetooth
 > 文档用途：供技术评审、算法复核及 Google Gemini 分析
+
+当前正式版为 v3.3.2。RSSI 距离仍只用于车辆发现与选择，不代表已认证钥匙距离或锁车结果。当前实现见 `Xiaote/Bluetooth/NearbyTeslaScanner.swift`；安装与 CI 说明统一见 [构建与发布](BUILD.md)。本文的版本和构建验收记录不表示已验证所有后续系统。
 
 ## 1. 升级目标
 

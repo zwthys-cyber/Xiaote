@@ -1,6 +1,6 @@
 # 架构与协议
 
-本文对应 App `2.3.4` 与 `main` 分支。小特蓝牙钥匙不通过 Tesla 账号或 Fleet API 控车，车辆链路如下：
+本文对应正式版 **v3.3.2（332）** 的主线实现。应用提供相互独立的本地蓝牙钥匙与可选 Fleet API 远程控制；未登录不影响已配对的本地钥匙。最低系统要求见 [构建与发布](BUILD.md)。以下先说明本地车辆链路：
 
 1. `NearbyTeslaScanner` 使用 CoreBluetooth 扫描附近广播，并校验 Tesla 本地名称格式。
 2. App 为每辆车在 Keychain 生成独立 P-256 私钥。
@@ -12,6 +12,8 @@
 
 ## 主要模块
 
+- `Views/RootView.swift` 与 `Views/FleetHomeView.swift`：账号车辆首页与本地钥匙入口；添加钥匙直接进入扫描列表。尚未合并的 `feat/bottom-navigation` 不代表当前正式版界面。
+- `Views/PairVehicleView.swift`：扫描与刷卡配对流程、直接 Tesla 授权、失败恢复和搜索动画。
 - `Bluetooth/NearbyTeslaScanner.swift`：扫描、时间窗口中位数、非对称自适应 RSSI 平滑、距离估算、主候选迟滞和过期车辆过滤；该距离只服务添加车辆 UI，不参与 Phone Key 拉门认证。
 - `Bluetooth/LegacyVCSECClient.swift`：VIN-free 配对及会话引导。
 - `Model/VehicleController.swift`：连接生命周期、车辆状态、命令调度、媒体同步和错误呈现。
@@ -23,6 +25,12 @@
 - `Views/ScheduleAndChargingSitesView.swift`：车辆端预约与附近超级充电站。
 - `Model/VehicleAlertManager.swift`：基于刷新快照的本地通知与重复抑制。
 - `App/WatchBridge.swift`：Apple Watch 与 iPhone 命令中继和状态快照。
+
+## 可选远程链路
+
+`FleetAccountController` 通过系统授权会话打开 Tesla OAuth 页面。`backend/` 接收回调、交换并加密保存 Tesla 令牌，App 仅在 Keychain 保存项目后端会话令牌。`FleetAPIClient` 和 `FleetRemoteController` 读取账号车辆与远程状态；控制命令经后端允许列表及 Tesla Vehicle Command Proxy 发送。
+
+此路径需要网络、有效授权、后端服务和车辆能力支持，不承载本地 Phone Key 密钥。远程状态与蓝牙状态分别读取，不能把云端可用视作本地钥匙已在线。服务配置与本地验证见 [后端说明](../backend/README.md)，数据边界见 [隐私说明](PRIVACY.md)。
 
 ## 后台与被动钥匙
 

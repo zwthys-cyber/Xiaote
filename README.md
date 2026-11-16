@@ -1,15 +1,29 @@
-# 小特蓝牙钥匙 for iOS 17
+# 小特蓝牙钥匙
 
-[![Build iOS 17 IPA](https://github.com/zwthys-cyber/Xiaote/actions/workflows/build.yml/badge.svg)](https://github.com/zwthys-cyber/Xiaote/actions/workflows/build.yml)
+[![Build and verify Xiaote](https://github.com/zwthys-cyber/Xiaote/actions/workflows/build.yml/badge.svg)](https://github.com/zwthys-cyber/Xiaote/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/zwthys-cyber/Xiaote)](https://github.com/zwthys-cyber/Xiaote/releases/latest)
 
-面向 iOS 17 的 Tesla 混合钥匙客户端。本地蓝牙钥匙无需 Tesla 账号或网络即可独立使用；用户也可以选择通过 Tesla 官方 OAuth 连接账号，在蓝牙范围外使用 Fleet API 能力。
+面向 iPhone 的 Tesla 蓝牙钥匙与车控客户端。本地蓝牙钥匙无需 Tesla 账号或网络即可独立使用；用户也可以选择通过 Tesla 官方 OAuth 连接账号，在蓝牙范围外使用 Fleet API 能力。Apple Watch 通过附近 iPhone 中继常用控制。
 
 基础 Phone Key 配对与门锁控制不要求 VIN；需要 Infotainment 完整身份的高级功能会在首次使用时要求一次性补全 VIN，并仅保存在本机。音乐封面是独立的联网增强功能，详见[隐私说明](docs/PRIVACY.md)。
 
-> [下载最新 TrollStore IPA](https://github.com/zwthys-cyber/Xiaote/releases/latest)
+> [下载最新 IPA](https://github.com/zwthys-cyber/Xiaote/releases/latest) · 当前正式版 **v3.3.2（332）**
 
-文档：[架构与协议](docs/ARCHITECTURE.md) · [构建与发布](docs/BUILD.md) · [隐私说明](docs/PRIVACY.md) · [版本记录](CHANGELOG.md)
+文档：[文档目录](docs/README.md) · [架构与协议](docs/ARCHITECTURE.md) · [构建与发布](docs/BUILD.md) · [隐私说明](docs/PRIVACY.md) · [版本记录](CHANGELOG.md)
+
+## 系统与安装
+
+- 最低系统要求为 iOS 17.0；Watch 配套应用要求 watchOS 10.0。这是最低要求，不表示仅支持该系统版本。
+- Release 提供 `Xiaote-unsigned.ipa` 和 SHA-256 校验文件。普通签名安装需使用有效证书及匹配的描述文件，例如通过全能签处理后安装；TrollStore 仅适用于其自身支持的系统。
+- 签名权限、证书、设备系统和车辆固件会影响安装及功能表现。构建成功不等于已在所有新系统上实测，包括 iOS 27.0.1。
+- Apple Watch 不持有车辆私钥，不能脱离 iPhone 独立充当此项目的蓝牙钥匙；Watch 安装情况还取决于签名和设备配对。
+
+## v3.3.2 更新
+
+- 点击“添加手机蓝牙钥匙”后直接进入搜索列表。
+- 配对欢迎页直接发起 Tesla 授权，显示登录中状态，失败后可以重试。
+- 搜索增加像素点动画和耗时显示，优化首页提示、配对字号、触控区域及触觉反馈。
+- 补充相关 UI 回归测试；完整变化见[版本记录](CHANGELOG.md)。
 
 ## 当前功能
 
@@ -59,7 +73,7 @@
 - 原创黑白 App 图标与紧凑车辆状态卡，不用大型模型遮挡首屏控制
 - 单一门锁主操作、紧凑车辆控制带，以及控件内的执行进度和成功反馈
 - 统一的无弹跳动效语言，并完整支持“减弱动态效果”
-- GitHub Actions 编译无签名 IPA，供 TrollStore 安装
+- GitHub Actions 测试并编译无签名 IPA，支持自行签名安装
 
 协议层使用 vendored 的 `Vendor/TeslaBLEKeyKit`：固定到 `misakatao/TeslaBLEKeyKit` 提交 `d5da62c003ac6e2e0d8695f910957dd5708c82d7` 的源码副本，并包含 CoreBluetooth 状态恢复和被动钥匙连接处理的本地改动，来源与改动范围见 `Vendor/TeslaBLEKeyKit/UPSTREAM.md`；消息定义来源于 Tesla 官方
 [`vehicle-command`](https://github.com/teslamotors/vehicle-command)。Vendor 化是为了让 App 构建与 CI 测试始终使用同一份已审查代码，不依赖外部 fork 仓库的可用性。
@@ -69,10 +83,10 @@
 
 ## 配对
 
-1. 在 TrollStore 中安装 Actions 生成的 IPA。
+1. 从 Releases 下载 IPA，使用适合设备的签名或安装方式完成安装。
 2. 打开蓝牙并允许 App 使用蓝牙。
 3. 坐进车辆，携带一张已经授权的 Tesla NFC 钥匙卡。
-4. App 按估算距离实时排列车辆并默认选择最近的一辆；附近有多辆车时，可核对车型、设备标识、dBm 和距离后手动改选。
+4. 点击“添加手机蓝牙钥匙”直接开始搜索；App 按估算距离实时排列车辆并默认选择最近的一辆。附近有多辆车时，可核对车型、设备标识、dBm 和距离后手动改选。
 5. App 提示后，把钥匙卡放到中控台读卡区域并在车机确认；看到新钥匙后，回到 App 点“已在车机确认，继续”。
 
 密钥使用 `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`，手机锁屏时仍可响应拉门认证，但不会同步或迁移到其他设备。清理 Keychain 或换机后需要重新配对；卸载 App 前应先在 App 内忘记车辆，并在车机“控制 > 锁”中删除旧钥匙记录。被动钥匙依赖 App 在后台运行：不要从多任务界面划掉 App，重启手机后先打开一次 App 再靠近车辆。
@@ -81,13 +95,13 @@
 
 ## GitHub 编译
 
-将此目录作为仓库推送到 GitHub。Actions 中的 **Build iOS 17 IPA** 会：
+Actions 中的 **Build and verify Xiaote** 使用 GitHub 托管的 `macos-26` Runner：
 
 1. 在 GitHub 托管 Mac 上对仓库内 vendored 的 TeslaBLEKeyKit 运行密码学与协议测试；
 2. 用 XcodeGen 生成工程，并在 iOS 模拟器运行 App 协议回归测试；
-3. 在带 `xiaote-mac` 标签的自托管 Apple Silicon Mac 上为真实 iPhone 编译 Release，并复用依赖与增量编译缓存；
-4. 编译并嵌入 watchOS 10 配套应用；
-5. 生成 `Xiaote-unsigned.ipa` artifact；推送 `v*` tag 时同时发布到 GitHub Release。
+3. 使用 Xcode 26.2 为真实 iPhone 编译未签名 Release；
+4. 编译并嵌入 Apple Watch 配套应用；
+5. 将 IPA 和校验文件上传为 `Xiaote-IPA` artifact，保留 30 天；推送 `v*` tag 时同时发布到 GitHub Release。旧运行的产物名称可能仍带旧的系统或安装工具后缀。
 
 工作流使用 Node 24 版本的 `actions/checkout@v6` 与 `actions/upload-artifact@v6`，避免 GitHub 托管 Runner 的 Node 20 弃用警告。
 

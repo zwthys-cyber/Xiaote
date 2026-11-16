@@ -2,6 +2,8 @@
 
 This service adds optional Tesla account connectivity to the existing local BLE key. It is a confidential OAuth client: Tesla access and rotating refresh tokens stay encrypted on the server, while the iOS app receives only a revocable application session token.
 
+This document describes the backend source shipped with Xiaote v3.3.2. Actual server availability and deployed configuration must be checked separately. Local BLE pairing and Phone Key authentication do not depend on this service. See [architecture](../docs/ARCHITECTURE.md), [privacy](../docs/PRIVACY.md), and [build/release instructions](../docs/BUILD.md).
+
 ## China endpoints
 
 - Authorization: `https://auth.tesla.cn/oauth2/v3/authorize`
@@ -32,6 +34,10 @@ TOKEN_ENCRYPTION_KEY=
 5. Vehicle reads and commands use the app session. The backend rotates Tesla refresh tokens automatically.
 
 Remote commands are allowlisted and sent through Tesla's official `tesla/vehicle-command` proxy. The fleet private key never enters the iOS app or public repository.
+
+Vehicle routes process the account vehicle identifier/VIN and user-requested state or command parameters. Unlike BLE-only operation, these requests pass through the backend and Tesla. Endpoints are declared in `cmd/server/main.go`; client-facing requests are implemented in `Xiaote/Cloud/FleetAPIClient.swift` in the repository root. Account/profile, vehicle data and wake, vehicle details, charging-site queries, and allowlisted commands depend on the user's Tesla authorization and vehicle capabilities. The presence of a backend route does not imply every endpoint has a corresponding App screen.
+
+Deployment templates are in `deploy/compose.yaml` and `deploy/Caddyfile`; they configure the backend, HTTPS entry point and command proxy. Keep production credentials outside the repository. Deploying changes to this source is separate from publishing an iOS IPA.
 
 ## Local verification
 

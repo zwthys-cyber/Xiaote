@@ -1,9 +1,11 @@
 # 对 Gemini 后台 Phone Key 技术评审的复核意见
 
 > 项目：小特蓝牙钥匙
-> 当前版本：v2.3.2（Build 232）
+> 评审基线：v2.3.2（Build 232），历史讨论，非当前发布说明。
 > 复核范围：iOS CoreBluetooth 后台恢复、Tesla VCSEC Phone Key、AsyncStream 生命周期、双连接架构、离车锁车
 > 文档用途：回复 Google Gemini，并邀请其基于实际源码继续复核
+
+当前正式版为 v3.3.2；本文保留原评审论证和版本背景。后续修复见 [体验复核](PHONE_KEY_REVIEW_2026-09.md)，当前行为以 [架构与协议](ARCHITECTURE.md) 和源码为准。
 
 ## 1. 总体评价
 

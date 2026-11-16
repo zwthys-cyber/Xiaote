@@ -48,7 +48,7 @@ jobs:
         run: swift test
 
   build-app:
-    name: Build unsigned TrollStore IPA
+    name: Build unsigned IPA
     if: github.event_name != 'pull_request'
     runs-on: macos-26
     concurrency:
@@ -185,7 +185,7 @@ jobs:
             CODE_SIGN_IDENTITY='' \
             build
 
-      - name: Package TrollStore IPA
+      - name: Package IPA
         run: |
           mkdir -p build/Payload
           cp -R DerivedData/Build/Products/Release-iphoneos/Xiaote.app build/Payload/
@@ -195,7 +195,7 @@ jobs:
       - name: Upload IPA
         uses: actions/upload-artifact@v6
         with:
-          name: Xiaote-iOS17-TrollStore
+          name: Xiaote-IPA
           path: |
             build/Xiaote-unsigned.ipa
             build/Xiaote-unsigned.ipa.sha256
